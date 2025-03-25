@@ -1,357 +1,340 @@
-import { useState, useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast';
-import RatingInput from '@/components/RatingInput';
-import { TEAMS, type MatchData, type PerformanceRatings, type ClimbingType, type TournamentStage } from '@/lib/types';
-import { saveMatch } from '@/lib/indexedDB';
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useToast } from "@/hooks/use-toast";
+import { RatingInput, CommentArea } from "@/components/ui/rating-input";
+import { teams, matchTypes, climbingTypes, ratingCategories } from "@/lib/teamData";
+import { addMatchEntry } from "@/lib/db";
+import { MatchEntry } from "@/lib/types";
 
 export default function ScoutMatch() {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState<Omit<MatchData, 'id' | 'timestamp'>>({
-    teamNumber: '',
-    teamName: '',
-    tournamentStage: 'Qualifications',
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form state
+  const [formData, setFormData] = useState<Omit<MatchEntry, 'id' | 'timestamp'>>({
+    team: "",
+    matchType: "qualifications",
     matchNumber: 1,
-    allianceColor: 'Red',
-    performanceRatings: {
-      defensePerformance: { score: 4 },
-      avoidingDefense: { score: 4 },
-      scoringAlgae: { score: 4 },
-      scoringCorals: { score: 4 },
-      autonomous: { score: 4 },
-      drivingSkill: { score: 4 },
-    },
-    climbing: 'None',
-    overallImpression: 4,
-    comments: '',
+    alliance: "",
+    
+    defense: 4,
+    defenseComment: "",
+    avoidingDefense: 4,
+    avoidingDefenseComment: "",
+    scoringAlgae: 4,
+    scoringAlgaeComment: "",
+    scoringCorals: 4,
+    scoringCoralsComment: "",
+    autonomous: 4,
+    autonomousComment: "",
+    drivingSkill: 4,
+    drivingSkillComment: "",
+    
+    climbing: "none",
+    climbingComment: "",
+    
+    overall: 4,
+    comments: "",
   });
 
-  // Handle form changes
-  const handleTeamChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const teamNumber = e.target.value;
-    const team = TEAMS.find(t => t.number === teamNumber);
-    setFormData({
-      ...formData,
-      teamNumber,
-      teamName: team?.name || '',
-    });
+  // Update form data
+  const updateFormData = (field: string, value: any) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
-  };
-
-  const handleRatingChange = (field: keyof PerformanceRatings, value: { score: number; notes?: string }) => {
-    setFormData({
-      ...formData,
-      performanceRatings: {
-        ...formData.performanceRatings,
-        [field]: value,
-      },
-    });
-  };
-
-  const handleClimbingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      climbing: e.target.value as ClimbingType,
-    });
-  };
-
-  const handleOverallChange = (value: { score: number }) => {
-    setFormData({
-      ...formData,
-      overallImpression: value.score,
-    });
-  };
-
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate form
-    if (!formData.teamNumber) {
+    if (!formData.team) {
       toast({
-        title: 'Error',
-        description: 'Please select a team.',
-        variant: 'destructive',
+        title: "Missing team",
+        description: "Please select a team to scout",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!formData.alliance) {
+      toast({
+        title: "Missing alliance",
+        description: "Please select an alliance color",
+        variant: "destructive",
       });
       return;
     }
     
     try {
-      setIsLoading(true);
+      setIsSubmitting(true);
+      
+      // Add timestamp to the entry
+      const entry = {
+        ...formData,
+        timestamp: Date.now(),
+      };
       
       // Save to IndexedDB
-      await saveMatch(formData);
+      await addMatchEntry(entry);
       
       toast({
-        title: 'Success',
-        description: 'Match data saved successfully!',
+        title: "Success",
+        description: "Match data saved successfully",
       });
       
-      // Reset form or keep team selection based on user preference
-      // For this implementation, we'll just reset the performance data
+      // Reset form
       setFormData({
-        ...formData,
-        performanceRatings: {
-          defensePerformance: { score: 4 },
-          avoidingDefense: { score: 4 },
-          scoringAlgae: { score: 4 },
-          scoringCorals: { score: 4 },
-          autonomous: { score: 4 },
-          drivingSkill: { score: 4 },
-        },
-        climbing: 'None',
-        overallImpression: 4,
-        comments: '',
+        team: "",
+        matchType: "qualifications",
+        matchNumber: 1,
+        alliance: "",
+        
+        defense: 4,
+        defenseComment: "",
+        avoidingDefense: 4,
+        avoidingDefenseComment: "",
+        scoringAlgae: 4,
+        scoringAlgaeComment: "",
+        scoringCorals: 4,
+        scoringCoralsComment: "",
+        autonomous: 4,
+        autonomousComment: "",
+        drivingSkill: 4,
+        drivingSkillComment: "",
+        
+        climbing: "none",
+        climbingComment: "",
+        
+        overall: 4,
+        comments: "",
       });
       
     } catch (error) {
-      console.error('Error saving match data:', error);
+      console.error("Error saving match data:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to save match data. Please try again.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to save match data. Please try again.",
+        variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
+  // Handle form reset
+  const handleReset = () => {
+    setFormData({
+      team: "",
+      matchType: "qualifications",
+      matchNumber: 1,
+      alliance: "",
+      
+      defense: 4,
+      defenseComment: "",
+      avoidingDefense: 4,
+      avoidingDefenseComment: "",
+      scoringAlgae: 4,
+      scoringAlgaeComment: "",
+      scoringCorals: 4,
+      scoringCoralsComment: "",
+      autonomous: 4,
+      autonomousComment: "",
+      drivingSkill: 4,
+      drivingSkillComment: "",
+      
+      climbing: "none",
+      climbingComment: "",
+      
+      overall: 4,
+      comments: "",
+    });
+  };
+
   return (
-    <section>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Match Information Section */}
-        <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-          <h2 className="text-lg font-bold mb-4 text-primary">Match Information</h2>
+    <>
+      {/* Desktop navigation tabs (hidden on mobile) */}
+      <div className="hidden md:flex mb-6 border-b border-gray-300">
+        <a href="/scout" className="tab-btn active py-2 px-4 font-medium text-primary border-b-2 border-primary">
+          <i className="fas fa-clipboard-list mr-2"></i>Scout Match
+        </a>
+        <a href="/team" className="tab-btn py-2 px-4 font-medium text-gray-700">
+          <i className="fas fa-users mr-2"></i>View Team
+        </a>
+        <a href="/data" className="tab-btn py-2 px-4 font-medium text-gray-700">
+          <i className="fas fa-sync-alt mr-2"></i>Export / Import
+        </a>
+      </div>
+      
+      <Card>
+        <CardContent className="p-4 md:p-6">
+          <h2 className="text-xl font-bold mb-4">Scout Match</h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Team Select */}
-            <div>
-              <label htmlFor="teamNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                Team<span className="text-red-500 ml-1">*</span>
-              </label>
-              <select
-                id="teamNumber"
-                name="teamNumber"
-                value={formData.teamNumber}
-                onChange={handleTeamChange}
-                required
-                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-primary"
-              >
-                <option value="" disabled>Select a team</option>
-                {TEAMS.map((team) => (
-                  <option key={team.number} value={team.number}>
-                    {team.number} - {team.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Tournament Stage */}
-            <div>
-              <label htmlFor="tournamentStage" className="block text-sm font-medium text-gray-700 mb-1">
-                Tournament Stage<span className="text-red-500 ml-1">*</span>
-              </label>
-              <select
-                id="tournamentStage"
-                name="tournamentStage"
-                value={formData.tournamentStage}
-                onChange={handleInputChange}
-                required
-                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-primary"
-              >
-                <option value="Qualifications">Qualifications</option>
-                <option value="Quarterfinals">Quarterfinals</option>
-                <option value="Semifinals">Semifinals</option>
-                <option value="Finals">Finals</option>
-              </select>
-            </div>
-
-            {/* Match Number */}
-            <div>
-              <label htmlFor="matchNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                Match Number<span className="text-red-500 ml-1">*</span>
-              </label>
-              <input
-                type="number"
-                id="matchNumber"
-                name="matchNumber"
-                min="1"
-                value={formData.matchNumber}
-                onChange={handleInputChange}
-                required
-                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-primary"
-              />
-            </div>
-
-            {/* Alliance Color */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Alliance Color<span className="text-red-500 ml-1">*</span>
-              </label>
-              <div className="flex space-x-4">
-                <label className="inline-flex items-center">
-                  <input
-                    type="radio"
-                    name="allianceColor"
-                    value="Red"
-                    checked={formData.allianceColor === 'Red'}
-                    onChange={handleInputChange}
-                    className="form-radio text-red-600"
-                  />
-                  <span className="ml-2 bg-red-600 text-white px-3 py-1 rounded">Red</span>
-                </label>
-                <label className="inline-flex items-center">
-                  <input
-                    type="radio"
-                    name="allianceColor"
-                    value="Blue"
-                    checked={formData.allianceColor === 'Blue'}
-                    onChange={handleInputChange}
-                    className="form-radio text-blue-600"
-                  />
-                  <span className="ml-2 bg-blue-600 text-white px-3 py-1 rounded">Blue</span>
-                </label>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Match Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="team" className="block mb-1 font-medium">Team</Label>
+                <Select 
+                  value={formData.team} 
+                  onValueChange={(value) => updateFormData("team", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Team" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teams.map(([teamNumber, teamName]) => (
+                      <SelectItem key={teamNumber} value={teamNumber}>
+                        {teamNumber} - {teamName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="match-type" className="block mb-1 font-medium">Tournament Stage</Label>
+                <Select 
+                  value={formData.matchType} 
+                  onValueChange={(value) => updateFormData("matchType", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Match Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {matchTypes.map((matchType) => (
+                      <SelectItem key={matchType.value} value={matchType.value}>
+                        {matchType.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <Label htmlFor="match-number" className="block mb-1 font-medium">Match Number</Label>
+                <Input
+                  id="match-number"
+                  type="number"
+                  min={1}
+                  value={formData.matchNumber}
+                  onChange={(e) => updateFormData("matchNumber", parseInt(e.target.value))}
+                  required
+                />
+              </div>
+              
+              <div>
+                <Label className="block mb-1 font-medium">Alliance Color</Label>
+                <RadioGroup
+                  value={formData.alliance}
+                  onValueChange={(value) => updateFormData("alliance", value)}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="red" id="red" />
+                    <Label htmlFor="red" className="flex items-center">
+                      <span className="inline-block w-4 h-4 mr-1 bg-red-600 rounded-full"></span>
+                      Red
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="blue" id="blue" />
+                    <Label htmlFor="blue" className="flex items-center">
+                      <span className="inline-block w-4 h-4 mr-1 bg-blue-600 rounded-full"></span>
+                      Blue
+                    </Label>
+                  </div>
+                </RadioGroup>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Performance Ratings Section */}
-        <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-          <h2 className="text-lg font-bold mb-4 text-primary">Performance Ratings</h2>
-          
-          {/* Rating Fields */}
-          <RatingInput
-            name="defensePerformance"
-            label="Defense Performance"
-            value={formData.performanceRatings.defensePerformance.score}
-            notes={formData.performanceRatings.defensePerformance.notes}
-            onChange={(value) => handleRatingChange('defensePerformance', value)}
-            required
-          />
-          
-          <RatingInput
-            name="avoidingDefense"
-            label="Avoiding Defense"
-            value={formData.performanceRatings.avoidingDefense.score}
-            notes={formData.performanceRatings.avoidingDefense.notes}
-            onChange={(value) => handleRatingChange('avoidingDefense', value)}
-            required
-          />
-          
-          <RatingInput
-            name="scoringAlgae"
-            label="Scoring Algae"
-            value={formData.performanceRatings.scoringAlgae.score}
-            notes={formData.performanceRatings.scoringAlgae.notes}
-            onChange={(value) => handleRatingChange('scoringAlgae', value)}
-            required
-          />
-          
-          <RatingInput
-            name="scoringCorals"
-            label="Scoring Corals"
-            value={formData.performanceRatings.scoringCorals.score}
-            notes={formData.performanceRatings.scoringCorals.notes}
-            onChange={(value) => handleRatingChange('scoringCorals', value)}
-            required
-          />
-          
-          <RatingInput
-            name="autonomous"
-            label="Autonomous"
-            value={formData.performanceRatings.autonomous.score}
-            notes={formData.performanceRatings.autonomous.notes}
-            onChange={(value) => handleRatingChange('autonomous', value)}
-            required
-          />
-          
-          <RatingInput
-            name="drivingSkill"
-            label="Driving Skill"
-            value={formData.performanceRatings.drivingSkill.score}
-            notes={formData.performanceRatings.drivingSkill.notes}
-            onChange={(value) => handleRatingChange('drivingSkill', value)}
-            required
-          />
-
-          {/* Climbing Dropdown */}
-          <div className="mb-4">
-            <label htmlFor="climbing" className="block text-sm font-medium text-gray-700 mb-1">
-              Climbing<span className="text-red-500 ml-1">*</span>
-            </label>
-            <select
-              id="climbing"
-              name="climbing"
-              value={formData.climbing}
-              onChange={handleClimbingChange}
-              required
-              className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-primary"
-            >
-              <option value="None">None</option>
-              <option value="Low">Low</option>
-              <option value="High">High</option>
-            </select>
-            <input
-              type="text"
-              placeholder="Optional notes"
-              className="w-full p-2 border border-gray-300 rounded mt-1"
-            />
-          </div>
-
-          {/* Overall Impression */}
-          <RatingInput
-            name="overallImpression"
-            label="Overall Impression"
-            value={formData.overallImpression}
-            onChange={handleOverallChange}
-            required
-          />
-
-          {/* Comments */}
-          <div className="mb-4">
-            <label htmlFor="comments" className="block text-sm font-medium text-gray-700 mb-1">
-              Additional Comments
-            </label>
-            <textarea
-              id="comments"
-              name="comments"
-              rows={3}
-              value={formData.comments}
-              onChange={handleInputChange}
-              className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-primary focus:border-primary"
-              placeholder="Enter any additional observations here..."
-            />
-          </div>
-        </div>
-
-        {/* Submit Button */}
-        <div className="flex justify-center">
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="bg-primary hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-md transition duration-150 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-70 disabled:cursor-not-allowed"
-          >
-            {isLoading ? 'Saving...' : 'Save Match Data'}
-          </button>
-        </div>
-      </form>
-      
-      {/* Loading Indicator */}
-      {isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center">
-            <div className="w-12 h-12 border-4 border-blue-200 border-t-primary rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-700">Saving match data...</p>
-          </div>
-        </div>
-      )}
-    </section>
+            
+            {/* Rating Fields */}
+            <div className="border-t border-b border-gray-200 py-4">
+              <h3 className="font-medium mb-4">Performance Ratings</h3>
+              
+              {/* Rating Fields */}
+              {ratingCategories.map((category) => (
+                <RatingInput
+                  key={category.id}
+                  id={category.id}
+                  label={category.label}
+                  value={formData[category.id as keyof typeof formData] as number}
+                  comment={formData[`${category.id}Comment` as keyof typeof formData] as string}
+                  onChange={(value) => updateFormData(category.id, value)}
+                  onCommentChange={(comment) => updateFormData(`${category.id}Comment`, comment)}
+                />
+              ))}
+              
+              {/* Climbing */}
+              <div className="mb-4">
+                <Label htmlFor="climbing" className="block mb-1 font-medium">Climbing</Label>
+                <Select 
+                  value={formData.climbing} 
+                  onValueChange={(value) => updateFormData("climbing", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Climbing Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {climbingTypes.map((climbType) => (
+                      <SelectItem key={climbType.value} value={climbType.value}>
+                        {climbType.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  id="climbing-comment"
+                  value={formData.climbingComment}
+                  onChange={(e) => updateFormData("climbingComment", e.target.value)}
+                  placeholder="Optional comment"
+                  className="w-full mt-1 p-2 text-sm"
+                />
+              </div>
+              
+              {/* Overall Impression */}
+              <RatingInput
+                id="overall"
+                label="Overall Impression"
+                value={formData.overall}
+                onChange={(value) => updateFormData("overall", value)}
+              />
+              
+              {/* General Comments */}
+              <CommentArea
+                id="comments"
+                label="Additional Comments"
+                value={formData.comments || ""}
+                onChange={(value) => updateFormData("comments", value)}
+              />
+            </div>
+            
+            {/* Form Actions */}
+            <div className="flex justify-end gap-3">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={handleReset}
+              >
+                Reset
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Saving..." : "Save Data"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </>
   );
 }
