@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,40 @@ import { RatingInput, CommentArea } from "@/components/ui/rating-input";
 import { teams, matchTypes, climbingTypes, ratingCategories } from "@/lib/teamData";
 import { addMatchEntry } from "@/lib/db";
 import { MatchEntry } from "@/lib/types";
+import { webSocketService } from "@/lib/websocket";
+import { formSubmitVibration } from "@/lib/haptics";
 
 export default function ScoutMatch() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
+
+  // Setup WebSocket listeners
+  useEffect(() => {
+    // Listen for WebSocket connection status changes
+    const removeConnectionListener = webSocketService.addListener('connection_status', (data) => {
+      setWsConnected(data.connected);
+    });
+
+    // Listen for new match entries from other devices
+    const removeNewMatchListener = webSocketService.addListener('new_match', (data) => {
+      if (data.matchData) {
+        toast({
+          title: "New Match Entry",
+          description: `Team ${data.matchData.team} match data received from ${data.matchData.scoutedBy}`,
+        });
+      }
+    });
+
+    // Set initial connection status
+    setWsConnected(webSocketService.isSocketConnected());
+
+    // Clean up listeners on unmount
+    return () => {
+      removeConnectionListener();
+      removeNewMatchListener();
+    };
+  }, [toast]);
 
   // Form state
   const [formData, setFormData] = useState<Omit<MatchEntry, 'id' | 'timestamp'>>({
@@ -76,14 +106,32 @@ export default function ScoutMatch() {
     try {
       setIsSubmitting(true);
       
-      // Add timestamp to the entry
+      // Trigger haptic feedback on form submit
+      formSubmitVibration();
+      
+      // Add timestamp and sync status to the entry
       const entry = {
         ...formData,
         timestamp: Date.now(),
+        syncStatus: 'pending' as 'pending' | 'synced' | 'failed',
+        scoutedBy: localStorage.getItem('scoutName') || 'unknown'
       };
       
       // Save to IndexedDB
-      await addMatchEntry(entry);
+      const entryId = await addMatchEntry(entry);
+      
+      // Broadcast to other connected devices via WebSocket
+      if (navigator.onLine && webSocketService.isSocketConnected()) {
+        try {
+          webSocketService.sendMatchEntry({
+            ...entry,
+            id: entryId
+          });
+          console.log("New match entry broadcasted via WebSocket");
+        } catch (wsError) {
+          console.error("Failed to broadcast match entry via WebSocket:", wsError);
+        }
+      }
       
       toast({
         title: "Success",
@@ -175,7 +223,15 @@ export default function ScoutMatch() {
       
       <Card>
         <CardContent className="p-4 md:p-6">
-          <h2 className="text-xl font-bold mb-4">Scout Match</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Scout Match</h2>
+            {navigator.onLine && (
+              <div className="flex items-center text-xs">
+                <span className={`inline-block w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-red-500'} mr-1.5`}></span>
+                <span className="text-gray-500">{wsConnected ? 'Connected for real-time sync' : 'Disconnected'}</span>
+              </div>
+            )}
+          </div>
           
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Basic Match Info */}

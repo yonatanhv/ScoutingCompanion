@@ -1,9 +1,10 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
 import { matchEntries, insertMatchEntrySchema, teamStatistics, insertTeamStatisticsSchema } from "@shared/schema";
+import { WebSocketServer, WebSocket } from 'ws';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Since this is primarily a client-side PWA that works offline,
@@ -82,13 +83,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Apply where conditions and add ordering
+      let finalQuery = query;
       if (conditions.length > 0) {
-        query = query.where(and(...conditions));
+        finalQuery = finalQuery.where(and(...conditions));
       }
       
-      query = query.orderBy(desc(matchEntries.timestamp));
+      finalQuery = finalQuery.orderBy(desc(matchEntries.timestamp));
       
-      const matches = await query;
+      const matches = await finalQuery;
       res.json(matches);
     } catch (error) {
       console.error("Error getting match entries:", error);
@@ -218,6 +220,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await updateTeamStatistics(team);
       }
       
+      // After successful sync, notify all connected clients
+      broadcastToAll({
+        type: 'sync_completed',
+        teams: Array.from(uniqueTeams),
+        timestamp: Date.now()
+      });
+      
       res.json(syncResults);
     } catch (error) {
       console.error("Error syncing data:", error);
@@ -226,6 +235,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   const httpServer = createServer(app);
+  
+  // Setup WebSocket server on the same HTTP server but different path
+  const wss = new WebSocketServer({ 
+    server: httpServer, 
+    path: '/ws' 
+  });
+  
+  // Track connected clients to broadcast updates
+  const clients = new Set<WebSocket>();
+  
+  wss.on('connection', (ws) => {
+    console.log('WebSocket client connected');
+    clients.add(ws);
+    
+    // Send initial connection confirmation
+    ws.send(JSON.stringify({ 
+      type: 'connected', 
+      timestamp: Date.now(),
+      message: 'Connected to FRC Scouting Server'
+    }));
+    
+    // Handle messages from clients
+    ws.on('message', async (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        
+        // Handle different message types
+        if (data.type === 'sync_request') {
+          // Client is requesting a sync - could trigger server-to-client sync
+          console.log('Client requested sync');
+          ws.send(JSON.stringify({ 
+            type: 'sync_acknowledged',
+            timestamp: Date.now()
+          }));
+        } 
+        else if (data.type === 'new_match') {
+          // Broadcast new match data to all other clients
+          console.log('New match data received, broadcasting to all clients');
+          broadcastToOthers(ws, {
+            type: 'match_update',
+            data: data.matchData,
+            timestamp: Date.now()
+          });
+        }
+      } catch (error) {
+        console.error('Error handling WebSocket message:', error);
+        ws.send(JSON.stringify({ 
+          type: 'error', 
+          message: 'Invalid message format',
+          timestamp: Date.now()
+        }));
+      }
+    });
+    
+    // Handle client disconnection
+    ws.on('close', () => {
+      console.log('WebSocket client disconnected');
+      clients.delete(ws);
+    });
+    
+    // Handle errors
+    ws.on('error', (error) => {
+      console.error('WebSocket error:', error);
+      clients.delete(ws);
+    });
+  });
+  
+  // Function to broadcast a message to all clients except the sender
+  function broadcastToOthers(sender: WebSocket, data: any) {
+    clients.forEach(client => {
+      if (client !== sender && client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(data));
+      }
+    });
+  }
+  
+  // Function to broadcast to all connected clients
+  function broadcastToAll(data: any) {
+    clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(data));
+      }
+    });
+  }
+  
+  // WebSocket notification is now integrated into the main sync endpoint above
   
   return httpServer;
 }

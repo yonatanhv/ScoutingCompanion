@@ -22,11 +22,15 @@ import { saveAs } from 'file-saver';
 import { apiRequest } from "@/lib/queryClient";
 import useOnlineStatus from "@/hooks/use-online-status";
 import { vibrationSuccess, vibrationError } from "@/lib/haptics";
+import { webSocketService } from "@/lib/websocket";
 
 export default function DataSync() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isOnline } = useOnlineStatus();
+  
+  // WebSocket connection state
+  const [wsConnected, setWsConnected] = useState(false);
   
   // Export options
   const [exportType, setExportType] = useState("all");
@@ -201,6 +205,59 @@ export default function DataSync() {
         lastSyncTime: formatLastSync(parseInt(serverSyncTime))
       }));
     }
+    
+    // Connect to WebSocket for real-time updates
+    if (isOnline) {
+      webSocketService.connect();
+    }
+  }, [isOnline]);
+  
+  // Setup WebSocket listeners for sync events
+  useEffect(() => {
+    // Listen for connection status events
+    const connectionStatusListener = webSocketService.addListener('connection_status', (data) => {
+      console.log('WebSocket connection status:', data);
+      setWsConnected(data.connected);
+      
+      if (data.connected) {
+        // Request any updates we might have missed
+        webSocketService.requestSync();
+      }
+    });
+    
+    // Listen for sync completed events
+    const syncCompletedListener = webSocketService.addListener('sync_completed', (data) => {
+      console.log('Received sync_completed event:', data);
+      toast({
+        title: "Sync Notification",
+        description: "Another device has synchronized data with the server. Reload to see updates.",
+      });
+      // Refresh pending syncs count
+      checkPendingSyncs();
+      // Update stats
+      loadDbStats();
+    });
+    
+    // Listen for new match events
+    const matchUpdateListener = webSocketService.addListener('match_update', (data) => {
+      console.log('Received match_update event:', data);
+      toast({
+        title: "New Match Data",
+        description: "New match data has been added by another device.",
+      });
+      // Update stats
+      loadDbStats();
+    });
+    
+    // Check initial connection status
+    setWsConnected(webSocketService.isSocketConnected());
+    
+    // Cleanup listeners on unmount
+    return () => {
+      connectionStatusListener();
+      syncCompletedListener();
+      matchUpdateListener();
+    };
   }, []);
 
   // Format bytes to human-readable size
@@ -502,7 +559,42 @@ export default function DataSync() {
       
       <Card>
         <CardContent className="p-4 md:p-6">
-          <h2 className="text-xl font-bold mb-4">Export & Import Data</h2>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+            <h2 className="text-xl font-bold">Export & Import Data</h2>
+            
+            {/* Server sync button - moved to the top for better visibility on mobile */}
+            <div className="mt-3 sm:mt-0">
+              <Button 
+                className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-medium"
+                onClick={handleServerSync}
+                disabled={isSyncing || !isOnline}
+              >
+                {isSyncing ? (
+                  <>
+                    <span className="animate-spin mr-2">⟳</span>
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-cloud-upload-alt mr-2"></i>
+                    Sync to Server {syncStats.pendingUploads > 0 && `(${syncStats.pendingUploads})`}
+                  </>
+                )}
+              </Button>
+              <div className="text-xs text-gray-500 text-center mt-1">
+                {isOnline ? 
+                  (syncStats.lastSyncTime ? `Last synced: ${syncStats.lastSyncTime}` : 'Not synced yet') : 
+                  'Offline - Connect to sync'
+                }
+                {isOnline && (
+                  <div className="mt-1 flex items-center justify-center gap-1">
+                    <span className={`inline-block w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                    <span>{wsConnected ? 'Real-time connected' : 'Real-time disconnected'}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Export Section */}
