@@ -110,7 +110,13 @@ export async function initDB(): Promise<void> {
 
 // Add a new match entry
 export async function addMatchEntry(entry: Omit<MatchEntry, 'id'>): Promise<number> {
-  const id = await db.add('matches', entry as MatchEntry);
+  // Set initial sync status if not provided
+  const entryWithSyncStatus = {
+    ...entry,
+    syncStatus: entry.syncStatus || 'pending'
+  } as MatchEntry;
+  
+  const id = await db.add('matches', entryWithSyncStatus);
   await updateTeamStatistics(entry.team);
   return id;
 }
@@ -118,6 +124,18 @@ export async function addMatchEntry(entry: Omit<MatchEntry, 'id'>): Promise<numb
 // Get all match entries for a team
 export async function getTeamMatches(teamNumber: string): Promise<MatchEntry[]> {
   return db.getAllFromIndex('matches', 'by-team', teamNumber);
+}
+
+// Update an existing match entry
+export async function updateMatchEntry(entry: MatchEntry): Promise<void> {
+  await db.put('matches', entry);
+  await updateTeamStatistics(entry.team);
+}
+
+// Get all match entries with specific sync status
+export async function getMatchesBySyncStatus(status: 'pending' | 'synced' | 'failed'): Promise<MatchEntry[]> {
+  const allMatches = await db.getAll('matches');
+  return allMatches.filter(match => match.syncStatus === status);
 }
 
 // Get a specific match entry

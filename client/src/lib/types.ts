@@ -30,6 +30,11 @@ export interface MatchEntry {
   
   // Metadata
   timestamp: number;
+  
+  // Sync status for server synchronization
+  syncStatus?: 'pending' | 'synced' | 'failed';
+  syncedAt?: number;
+  scoutedBy?: string;
 }
 
 // Team statistics

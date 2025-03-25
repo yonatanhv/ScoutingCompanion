@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,13 +16,17 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { teams } from "@/lib/teamData";
-import { exportAllData, importData, getDBStats, clearTeamData, clearAllData } from "@/lib/db";
-import { ExportData } from "@/lib/types";
+import { exportAllData, importData, getDBStats, clearTeamData, clearAllData, getMatchEntry, updateMatchEntry, getMatchesBySyncStatus } from "@/lib/db";
+import { ExportData, MatchEntry } from "@/lib/types";
 import { saveAs } from 'file-saver';
+import { apiRequest } from "@/lib/queryClient";
+import useOnlineStatus from "@/hooks/use-online-status";
+import { vibrationSuccess, vibrationError } from "@/lib/haptics";
 
 export default function DataSync() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { isOnline } = useOnlineStatus();
   
   // Export options
   const [exportType, setExportType] = useState("all");
@@ -56,13 +61,145 @@ export default function DataSync() {
 
   // Last sync timestamp
   const [lastSync, setLastSync] = useState<string | null>(null);
+  
+  // Server sync state
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStats, setSyncStats] = useState<{
+    pendingUploads: number;
+    lastSyncTime: string | null;
+  }>({
+    pendingUploads: 0,
+    lastSyncTime: null,
+  });
 
-  // Load DB stats on mount
+  // Check for matches that need to be synced with the server
+  const checkPendingSyncs = async () => {
+    try {
+      // Get matches by sync status
+      const pendingMatches = await getMatchesBySyncStatus('pending');
+      const failedMatches = await getMatchesBySyncStatus('failed');
+      
+      setSyncStats(prev => ({
+        ...prev,
+        pendingUploads: pendingMatches.length + failedMatches.length
+      }));
+    } catch (error) {
+      console.error("Error checking pending syncs:", error);
+    }
+  };
+
+  // Handle server sync
+  const handleServerSync = async () => {
+    if (!isOnline) {
+      toast({
+        title: "Offline",
+        description: "You're currently offline. Please connect to the internet to sync with server.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsSyncing(true);
+    
+    try {
+      // Get all match entries
+      const data = await exportAllData();
+      
+      // Get matches that need to be synced
+      const matchesToSync = data.matches.filter(match => 
+        !match.syncStatus || match.syncStatus === "pending"
+      );
+      
+      if (matchesToSync.length === 0) {
+        toast({
+          title: "Nothing to sync",
+          description: "All match data is already synchronized",
+        });
+        setIsSyncing(false);
+        return;
+      }
+      
+      // Sync with server
+      interface SyncResponse {
+        success: boolean;
+        syncedMatches: number;
+        errors: string[];
+      }
+      
+      const response = await apiRequest<SyncResponse>({
+        endpoint: "/api/sync",
+        method: "POST",
+        data: {
+          matches: matchesToSync
+        }
+      });
+      
+      if (response.success) {
+        // Update sync status for matches
+        for (const match of matchesToSync) {
+          if (match.id) {
+            // Update match entry sync status
+            const matchToUpdate = await getMatchEntry(match.id);
+            if (matchToUpdate) {
+              // Update match sync status locally
+              await updateMatchEntry({
+                ...matchToUpdate,
+                syncStatus: 'synced',
+                syncedAt: Date.now()
+              });
+              console.log(`Updated sync status for match ${match.id}`);
+            }
+          }
+        }
+        
+        // Update stats
+        await checkPendingSyncs();
+        
+        // Update server sync time
+        const now = Date.now();
+        localStorage.setItem('serverSyncTime', now.toString());
+        setSyncStats(prev => ({
+          ...prev,
+          lastSyncTime: formatLastSync(now)
+        }));
+        
+        vibrationSuccess();
+        toast({
+          title: "Sync successful",
+          description: `Synced ${response.syncedMatches} match entries with server`,
+        });
+      } else {
+        throw new Error("Sync failed");
+      }
+    } catch (error) {
+      console.error("Error syncing with server:", error);
+      vibrationError();
+      toast({
+        title: "Sync failed",
+        description: "Failed to sync with server. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Load DB stats on mount and check for pending syncs
   useEffect(() => {
     loadDbStats();
+    checkPendingSyncs();
     const storedLastSync = localStorage.getItem('lastSync');
     if (storedLastSync) {
       setLastSync(formatLastSync(parseInt(storedLastSync)));
+    }
+    
+    // Also load server sync status if available
+    const serverSyncTime = localStorage.getItem('serverSyncTime');
+    if (serverSyncTime) {
+      setSyncStats(prev => ({
+        ...prev,
+        lastSyncTime: formatLastSync(parseInt(serverSyncTime))
+      }));
     }
   }, []);
 
@@ -509,6 +646,61 @@ export default function DataSync() {
                   </Button>
                 </div>
               )}
+            </div>
+          </div>
+          
+          {/* Server Sync Section */}
+          <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
+            <div className="flex flex-wrap justify-between items-center">
+              <div>
+                <h3 className="font-medium mb-1">Server Synchronization</h3>
+                <p className="text-sm text-gray-600">
+                  {isOnline ? (
+                    "Sync your local data with the server when connected to the internet."
+                  ) : (
+                    "You're currently offline. Connect to the internet to sync data."
+                  )}
+                </p>
+              </div>
+              <div className="mt-3 sm:mt-0">
+                <Button
+                  onClick={handleServerSync}
+                  disabled={!isOnline || isSyncing}
+                  className={`relative ${!isOnline ? 'bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'} text-white px-5 min-w-[120px]`}
+                >
+                  {isSyncing ? (
+                    <>
+                      <span className="animate-pulse">Syncing...</span>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                      </svg>
+                      Sync with Server
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="bg-white p-3 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-500">Pending Uploads</div>
+                <div className="flex items-center">
+                  <span className="text-xl font-medium">{syncStats.pendingUploads}</span>
+                  {syncStats.pendingUploads > 0 && (
+                    <Badge className="ml-2 bg-yellow-500">Needs Sync</Badge>
+                  )}
+                </div>
+              </div>
+              <div className="bg-white p-3 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-500">Last Server Sync</div>
+                <div className="text-xl font-medium">{syncStats.lastSyncTime || "Never"}</div>
+              </div>
             </div>
           </div>
           

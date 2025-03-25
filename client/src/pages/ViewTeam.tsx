@@ -303,7 +303,7 @@ export default function ViewTeam() {
                       onValueChange={(value) => setFilters(prev => ({ ...prev, minOverallScore: parseInt(value) }))}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Min Score" />
                       </SelectTrigger>
                       <SelectContent>
                         {[1, 2, 3, 4, 5, 6].map((score) => (
