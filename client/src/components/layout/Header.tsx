@@ -1,14 +1,34 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Wifi, WifiOff, Download, Cpu } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useLocation } from "wouter";
 
 export default function Header() {
+  const [, navigate] = useLocation();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast({
+        title: "Connection restored",
+        description: "You are now back online.",
+        variant: "default",
+      });
+    };
+    
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast({
+        title: "Offline mode",
+        description: "App is running in offline mode. Data will be synchronized when connection is restored.",
+        variant: "destructive",
+      });
+    };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -28,7 +48,7 @@ export default function Header() {
         setDeferredPrompt(null);
       });
     };
-  }, []);
+  }, [toast]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -50,23 +70,50 @@ export default function Header() {
     }
   };
 
+  // Add haptic feedback if supported on the device
+  const triggerHapticFeedback = () => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50); // subtle 50ms vibration
+    }
+  };
+
   return (
-    <header className="bg-primary text-white p-4 shadow-md">
+    <header className="bg-primary/95 text-primary-foreground py-3 px-4 shadow-md transition-colors duration-300 backdrop-blur-sm">
       <div className="container mx-auto flex justify-between items-center">
-        <h1 className="text-2xl font-bold">FRC Scouting</h1>
-        <div className="flex gap-2">
+        <div className="flex items-center space-x-2">
+          <div 
+            className="flex items-center space-x-2 haptic-button cursor-pointer" 
+            onClick={() => {
+              triggerHapticFeedback();
+              navigate('/');
+            }}
+          >
+            <Cpu className="h-6 w-6" />
+            <h1 className="text-xl font-bold">FRC Scouting</h1>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <div className={`offline-indicator ${isOnline ? 'online' : ''}`}>
+            <span className="offline-dot"></span>
+            <span>
+              {isOnline ? 'Online' : 'Offline'}
+            </span>
+          </div>
+          
+          <ThemeToggle />
+          
           {deferredPrompt && (
-            <button 
+            <Button 
               onClick={handleInstallClick}
-              className="bg-white text-primary px-3 py-1 rounded font-medium text-sm"
+              size="sm"
+              variant="secondary"
+              className="btn-hover-fx text-xs flex items-center gap-1.5 ml-1"
             >
+              <Download className="h-3.5 w-3.5" />
               Install App
-            </button>
+            </Button>
           )}
-          <span className={`text-sm ${isOnline ? 'bg-success' : 'bg-error'} px-2 py-1 rounded-full flex items-center`}>
-            <i className={`fas ${isOnline ? 'fa-wifi' : 'fa-times'} mr-1`}></i>
-            {isOnline ? 'Online' : 'Offline'}
-          </span>
         </div>
       </div>
     </header>
