@@ -99,7 +99,10 @@ export default function Header() {
             }}
           >
             <Cpu className="h-6 w-6" />
-            <h1 className="text-xl font-bold">FRC Scouting</h1>
+            <div className="flex flex-col">
+              <h1 className="text-xl font-bold">GreenBlitz SuperScouting</h1>
+              <span className="text-[10px] opacity-70">made by Horev (probably during math class 📚)</span>
+            </div>
           </div>
         </div>
         
