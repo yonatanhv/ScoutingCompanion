@@ -1,0 +1,68 @@
+Prompt: Build a Cross-Platform Offline Scouting App for FRC
+
+Create a Progressive Web App (PWA) that works on both mobile and desktop, fully offline, and is installable on any device (Android, iOS, Windows, Mac). It should be optimized for use during FRC competitions by multiple scouts.
+
+⸻
+
+Core Requirements:
+
+1. Platform
+	•	Must be a Progressive Web App (PWA)
+	•	Fully installable and usable offline
+	•	Runs on mobile phones and computers
+	•	No backend server required
+	•	Use IndexedDB or localStorage to store data locally
+
+⸻
+
+2. Match Scouting Form
+
+Scouts can input data for a match using a form with:
+	•	Team (select from a fixed list — see below)
+	•	Tournament stage (Qualifications, Quarterfinals, Semifinals, Finals)
+	•	Match number
+	•	Alliance color (Red / Blue)
+	•	Fields with optional 1–7 rating and text:
+	•	Defense performance
+	•	Avoiding defense
+	•	Scoring algae
+	•	Scoring corals
+	•	Autonomous
+	•	Driving skill
+	•	Climbing (dropdown: None / Low / High)
+	•	Overall impression (1–7 rating)
+	•	Freeform comment
+
+⸻
+
+3. View Team Data
+	•	When a team is selected:
+	•	Show all previous match entries
+	•	Display average ratings per category
+	•	Show all comments
+	•	Include graphs/charts to visualize performance
+	•	Filter by match type, climbing type, or score thresholds
+
+⸻
+
+4. Export/Import & Sync
+	•	Allow exporting local data to JSON or CSV
+	•	Allow importing JSON files from other devices
+	•	This enables multiple scouts to sync their data manually with the lead scout
+
+⸻
+
+5. UI/UX
+	•	Responsive design: works smoothly on both phones and computers
+	•	Clean and fast interface with tabs or pages like:
+	•	“Scout Match”
+	•	“View Team”
+	•	“Export / Import”
+
+⸻
+
+6. Team List
+
+Use this fixed list of team numbers/names:
+
+["1574", "Miscar", "1577", "Steampunk", "1690", "Orbit", "1937", "RoboActive", "1942", "Elysium", "2096", "Cinderella", "2230", "General Angels", "2231", "OnyxTronix", "3065", "Jatt", "3075", "Ha-Dream Team", "3083", "Artemis", "3211", "The Y Team", "3316", "D-Bug", "3339", "BumbleB", "3388", "Flash", "4320", "The Joker", "4338", "Falcons", "4416", "Skynet", "4586", "PRIMO", "4590", "GreenBlitz", "4661", "Cypher", "4744", "Ninjas", "5135", "Black Unicorns", "5554", "The Poros Robotics", "5614", "Team Sycamore", "5635", "Demacia", "5654", "Phoenix", "5715", "DRC", "5987", "Galaxia", "5990", "TRIGON", "6104", "Desert Eagles", "6738", "Excalibur", "7039", "❌⭕", "7067", "Team Streak", "7112", "EverGreen", "7845", "8BIT", "8175", "Piece of Mind", "8223", "Mariners", "9738", "Ionic Bond", "9740", "CANBus"]
