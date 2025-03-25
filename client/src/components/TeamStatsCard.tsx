@@ -28,10 +28,10 @@ export default function TeamStatsCard({ teamAverages }: TeamStatsCardProps) {
         <h3 className="font-bold text-lg">Team {teamNumber} - {teamName}</h3>
         <span className="bg-primary text-white px-3 py-1 rounded-full text-sm">{matchCount} Matches</span>
       </div>
-      
+
       {/* Average Ratings */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-        <div className="bg-white p-3 rounded shadow-sm">
+        <div className="bg-white p-3 sm:p-4 rounded shadow-sm touch-manipulation">
           <p className="text-xs text-gray-500">Def. Performance</p>
           <p className="text-xl font-bold">{defensePerformance}</p>
           <div className="w-full bg-gray-200 rounded-full h-1.5">
@@ -41,8 +41,8 @@ export default function TeamStatsCard({ teamAverages }: TeamStatsCardProps) {
             ></div>
           </div>
         </div>
-        
-        <div className="bg-white p-3 rounded shadow-sm">
+
+        <div className="bg-white p-3 sm:p-4 rounded shadow-sm touch-manipulation">
           <p className="text-xs text-gray-500">Avoiding Defense</p>
           <p className="text-xl font-bold">{avoidingDefense}</p>
           <div className="w-full bg-gray-200 rounded-full h-1.5">
@@ -52,8 +52,8 @@ export default function TeamStatsCard({ teamAverages }: TeamStatsCardProps) {
             ></div>
           </div>
         </div>
-        
-        <div className="bg-white p-3 rounded shadow-sm">
+
+        <div className="bg-white p-3 sm:p-4 rounded shadow-sm touch-manipulation">
           <p className="text-xs text-gray-500">Scoring Algae</p>
           <p className="text-xl font-bold">{scoringAlgae}</p>
           <div className="w-full bg-gray-200 rounded-full h-1.5">
@@ -63,8 +63,8 @@ export default function TeamStatsCard({ teamAverages }: TeamStatsCardProps) {
             ></div>
           </div>
         </div>
-        
-        <div className="bg-white p-3 rounded shadow-sm">
+
+        <div className="bg-white p-3 sm:p-4 rounded shadow-sm touch-manipulation">
           <p className="text-xs text-gray-500">Scoring Corals</p>
           <p className="text-xl font-bold">{scoringCorals}</p>
           <div className="w-full bg-gray-200 rounded-full h-1.5">
@@ -74,8 +74,8 @@ export default function TeamStatsCard({ teamAverages }: TeamStatsCardProps) {
             ></div>
           </div>
         </div>
-        
-        <div className="bg-white p-3 rounded shadow-sm">
+
+        <div className="bg-white p-3 sm:p-4 rounded shadow-sm touch-manipulation">
           <p className="text-xs text-gray-500">Autonomous</p>
           <p className="text-xl font-bold">{autonomous}</p>
           <div className="w-full bg-gray-200 rounded-full h-1.5">
@@ -85,8 +85,8 @@ export default function TeamStatsCard({ teamAverages }: TeamStatsCardProps) {
             ></div>
           </div>
         </div>
-        
-        <div className="bg-white p-3 rounded shadow-sm">
+
+        <div className="bg-white p-3 sm:p-4 rounded shadow-sm touch-manipulation">
           <p className="text-xs text-gray-500">Driving Skill</p>
           <p className="text-xl font-bold">{drivingSkill}</p>
           <div className="w-full bg-gray-200 rounded-full h-1.5">
@@ -96,8 +96,8 @@ export default function TeamStatsCard({ teamAverages }: TeamStatsCardProps) {
             ></div>
           </div>
         </div>
-        
-        <div className="bg-white p-3 rounded shadow-sm">
+
+        <div className="bg-white p-3 sm:p-4 rounded shadow-sm touch-manipulation">
           <p className="text-xs text-gray-500">Overall</p>
           <p className="text-xl font-bold">{overallImpression}</p>
           <div className="w-full bg-gray-200 rounded-full h-1.5">
@@ -107,8 +107,8 @@ export default function TeamStatsCard({ teamAverages }: TeamStatsCardProps) {
             ></div>
           </div>
         </div>
-        
-        <div className="bg-white p-3 rounded shadow-sm">
+
+        <div className="bg-white p-3 sm:p-4 rounded shadow-sm touch-manipulation">
           <p className="text-xs text-gray-500">Climbing</p>
           <div className="flex mt-1 flex-wrap gap-1">
             <span className="bg-gray-200 px-2 py-1 rounded text-xs">None: {climbingCounts.None}</span>

@@ -11,15 +11,15 @@ interface PerformanceChartProps {
 export default function PerformanceChart({ matches }: PerformanceChartProps) {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstance = useRef<Chart | null>(null);
-  
+
   useEffect(() => {
     if (!chartRef.current || matches.length === 0) return;
-    
+
     // Sort matches by timestamp (oldest first)
     const sortedMatches = [...matches].sort((a, b) => 
       (a.timestamp || 0) - (b.timestamp || 0)
     );
-    
+
     // Prepare data
     const labels = sortedMatches.map(match => {
       let label = match.tournamentStage.substring(0, 1);
@@ -34,18 +34,18 @@ export default function PerformanceChart({ matches }: PerformanceChartProps) {
       }
       return `${label}${match.matchNumber}`;
     });
-    
+
     const overallScores = sortedMatches.map(match => match.overallImpression);
     const autonomous = sortedMatches.map(match => match.performanceRatings.autonomous.score);
     const drivingSkill = sortedMatches.map(match => match.performanceRatings.drivingSkill.score);
     const scoringAlgae = sortedMatches.map(match => match.performanceRatings.scoringAlgae.score);
     const scoringCorals = sortedMatches.map(match => match.performanceRatings.scoringCorals.score);
-    
+
     // Destroy previous chart if it exists
     if (chartInstance.current) {
       chartInstance.current.destroy();
     }
-    
+
     // Create new chart
     const ctx = chartRef.current.getContext('2d');
     if (ctx) {
@@ -141,7 +141,7 @@ export default function PerformanceChart({ matches }: PerformanceChartProps) {
         },
       });
     }
-    
+
     // Cleanup on unmount
     return () => {
       if (chartInstance.current) {
@@ -149,7 +149,7 @@ export default function PerformanceChart({ matches }: PerformanceChartProps) {
       }
     };
   }, [matches]);
-  
+
   if (matches.length === 0) {
     return (
       <div className="mb-6">
@@ -160,12 +160,18 @@ export default function PerformanceChart({ matches }: PerformanceChartProps) {
       </div>
     );
   }
-  
+
   return (
     <div className="mb-6">
       <h4 className="font-medium text-sm text-gray-700 mb-2">Performance Over Time</h4>
-      <div className="chart-container bg-card p-4 rounded-lg shadow-md border border-border/5">
-        <canvas ref={chartRef} height="200"></canvas>
+      <div className="chart-container bg-card p-4 rounded-lg shadow-md border border-border/5 min-h-[200px] md:min-h-[300px] relative">
+        {matches.length === 0 ? (
+          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+            No match data available
+          </div>
+        ) : (
+          <canvas ref={chartRef} height="200" style={{ maxHeight: '100%', width: '100%' }}></canvas>
+        )}
       </div>
     </div>
   );

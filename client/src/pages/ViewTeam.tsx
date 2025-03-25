@@ -355,7 +355,7 @@ export default function ViewTeam() {
               {/* Performance Charts */}
               <div className="mb-6">
                 <h3 className="font-medium mb-3">Performance Charts</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                   <div className="bg-white p-4 rounded-lg shadow-sm">
                     <h4 className="text-sm font-medium mb-2">Average Ratings</h4>
                     <div className="h-64">
