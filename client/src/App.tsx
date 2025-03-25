@@ -7,6 +7,8 @@ import ScoutMatch from "@/pages/ScoutMatch";
 import ViewTeam from "@/pages/ViewTeam";
 import DataSync from "@/pages/DataSync";
 import NotFound from "@/pages/not-found";
+import { useToast } from "@/hooks/use-toast";
+import { BackgroundParticles } from "@/components/ui/background-particles";
 
 function Router() {
   const [location, setLocation] = useLocation();
@@ -51,8 +53,9 @@ function App() {
   
   if (dbError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <div className="bg-card p-6 rounded-lg shadow-lg max-w-md w-full border border-border">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+        <BackgroundParticles />
+        <div className="bg-card p-6 rounded-lg shadow-lg max-w-md w-full border border-border relative z-10 slide-in-bottom">
           <h1 className="text-xl font-bold text-destructive mb-4">Database Error</h1>
           <p className="text-foreground">{dbError}</p>
           <p className="mt-4 text-muted-foreground text-sm">
@@ -65,9 +68,10 @@ function App() {
   
   if (!dbInitialized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="text-primary text-xl font-bold mb-4">FRC Scouting</div>
+      <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
+        <BackgroundParticles />
+        <div className="text-center z-10 slide-in-bottom">
+          <div className="text-primary text-2xl font-bold mb-4 gradient-text">FRC Scouting</div>
           <div className="text-muted-foreground">Initializing database...</div>
           <div className="mt-4 w-10 h-10 border-t-2 border-primary rounded-full animate-spin mx-auto"></div>
         </div>
@@ -77,8 +81,11 @@ function App() {
   
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {/* Background particles effect */}
+      <BackgroundParticles />
+      
       <Header />
-      <main className="flex-grow container mx-auto p-4 pb-20 md:pb-4">
+      <main className="flex-grow container mx-auto p-4 pb-20 md:pb-4 relative z-10 fade-in">
         <Router />
       </main>
       <MobileNav />

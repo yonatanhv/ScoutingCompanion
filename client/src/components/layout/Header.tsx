@@ -1,54 +1,66 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Wifi, WifiOff, Download, Cpu } from "lucide-react";
+import { Download, Cpu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
+import useOnlineStatus from "@/hooks/use-online-status";
+import { formSubmitVibration } from "@/lib/haptics";
+
+// Interface for the PWA install prompt
+interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
 
 export default function Header() {
   const [, navigate] = useLocation();
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const { isOnline } = useOnlineStatus();
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const { toast } = useToast();
+  const [isFirstRender, setIsFirstRender] = useState(true);
 
+  // Notify user when online status changes, but not on first render
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
+    if (isFirstRender) {
+      setIsFirstRender(false);
+      return;
+    }
+    
+    if (isOnline) {
       toast({
         title: "Connection restored",
         description: "You are now back online.",
         variant: "default",
       });
-    };
-    
-    const handleOffline = () => {
-      setIsOnline(false);
+    } else {
       toast({
         title: "Offline mode",
         description: "App is running in offline mode. Data will be synchronized when connection is restored.",
         variant: "destructive",
       });
-    };
+    }
+  }, [isOnline, toast, isFirstRender]);
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
+  useEffect(() => {
     // Handle PWA install
-    window.addEventListener('beforeinstallprompt', (e) => {
+    const handleBeforeInstallPrompt = (e: Event) => {
       // Prevent Chrome 76+ from automatically showing the prompt
       e.preventDefault();
       // Stash the event so it can be triggered later
-      setDeferredPrompt(e);
-    });
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('beforeinstallprompt', (e) => {
-        setDeferredPrompt(null);
-      });
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, [toast]);
+  }, []);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -72,9 +84,7 @@ export default function Header() {
 
   // Add haptic feedback if supported on the device
   const triggerHapticFeedback = () => {
-    if ('vibrate' in navigator) {
-      navigator.vibrate(50); // subtle 50ms vibration
-    }
+    formSubmitVibration(); // Use our haptics utility
   };
 
   return (

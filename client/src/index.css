@@ -1,4 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -212,5 +214,57 @@
   
   .responsive-grid-compact {
     @apply grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3;
+  }
+  
+  /* Form element transitions */
+  .form-transition {
+    @apply transition-all duration-300 ease-in-out;
+  }
+  
+  /* Scale animation on hover */
+  .scale-hover {
+    @apply transition-transform duration-200 hover:scale-[1.02];
+  }
+  
+  /* Soft shadow transition */
+  .shadow-transition {
+    @apply transition-shadow duration-300 hover:shadow-lg;
+  }
+  
+  /* Shimmer effect for loading states */
+  .shimmer {
+    @apply relative overflow-hidden;
+    background: linear-gradient(90deg, 
+      rgba(255,255,255,0) 0%, 
+      rgba(255,255,255,0.05) 50%, 
+      rgba(255,255,255,0) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+  
+  /* Floating animation */
+  .float {
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+    100% {
+      transform: translateY(0px);
+    }
   }
 }

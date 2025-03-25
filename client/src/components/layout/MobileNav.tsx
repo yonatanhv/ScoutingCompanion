@@ -1,14 +1,13 @@
 import { useLocation } from "wouter";
 import { ClipboardCheck, Users, RefreshCw } from "lucide-react";
+import { vibrationSuccess } from "@/lib/haptics";
 
 export default function MobileNav() {
   const [location, navigate] = useLocation();
 
   // Add haptic feedback if supported on the device
   const triggerHapticFeedback = () => {
-    if ('vibrate' in navigator) {
-      navigator.vibrate(30); // subtle 30ms vibration
-    }
+    vibrationSuccess(); // Use our haptics utility
   };
 
   const handleNavClick = (path: string) => {
