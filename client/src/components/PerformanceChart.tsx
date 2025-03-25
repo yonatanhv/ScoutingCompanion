@@ -164,7 +164,7 @@ export default function PerformanceChart({ matches }: PerformanceChartProps) {
   return (
     <div className="mb-6">
       <h4 className="font-medium text-sm text-gray-700 mb-2">Performance Over Time</h4>
-      <div className="chart-container bg-white p-3 rounded shadow-sm">
+      <div className="chart-container bg-card p-4 rounded-lg shadow-md border border-border/5">
         <canvas ref={chartRef} height="200"></canvas>
       </div>
     </div>
