@@ -255,14 +255,17 @@ export default function ViewTeam() {
                   <div>
                     <Label htmlFor="filter-match" className="block mb-1 text-sm">Match Type</Label>
                     <Select 
-                      value={filters.matchType || ""} 
-                      onValueChange={(value) => setFilters(prev => ({ ...prev, matchType: value }))}
+                      value={filters.matchType || "all-matches"} 
+                      onValueChange={(value) => setFilters(prev => ({ 
+                        ...prev, 
+                        matchType: value === "all-matches" ? "" : value 
+                      }))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="All Matches" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Matches</SelectItem>
+                        <SelectItem value="all-matches">All Matches</SelectItem>
                         {matchTypes.map((matchType) => (
                           <SelectItem key={matchType.value} value={matchType.value}>
                             {matchType.label}
@@ -274,14 +277,17 @@ export default function ViewTeam() {
                   <div>
                     <Label htmlFor="filter-climbing" className="block mb-1 text-sm">Climbing</Label>
                     <Select 
-                      value={filters.climbing || ""} 
-                      onValueChange={(value) => setFilters(prev => ({ ...prev, climbing: value }))}
+                      value={filters.climbing || "all-types"} 
+                      onValueChange={(value) => setFilters(prev => ({ 
+                        ...prev, 
+                        climbing: value === "all-types" ? "" : value 
+                      }))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="All Types" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Types</SelectItem>
+                        <SelectItem value="all-types">All Types</SelectItem>
                         {climbingTypes.map((climbType) => (
                           <SelectItem key={climbType.value} value={climbType.value}>
                             {climbType.label}

@@ -1,0 +1,51 @@
+The above error occurred in the <SelectItem> component:
+
+    at https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-select.js?v=b578f586:3042:7
+    at _c11 (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/src/components/ui/select.tsx:207:13)
+    at div
+    at https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-J37UDW3T.js?v=b578f586:41:13
+    at https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UACHJROW.js?v=b578f586:52:11
+    at https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UACHJROW.js?v=b578f586:33:11
+    at https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-MRB2OOEX.js?v=b578f586:98:15
+    at https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-select.js?v=b578f586:2953:13
+    at div
+    at https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UACHJROW.js?v=b578f586:52:11
+    at https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UACHJROW.js?v=b578f586:33:11
+    at https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-MRB2OOEX.js?v=b578f586:98:15
+    at Provider (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-6J5IXUBZ.js?v=b578f586:48:15)
+    at https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-select.js?v=b578f586:2497:59
+    at https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UACHJROW.js?v=b578f586:52:11
+    at https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-UACHJROW.js?v=b578f586:33:11
+    at https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-J37UDW3T.js?v=b578f586:41:13
+    at https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-KR2FC54L.js?v=b578f586:258:22
+    at SelectPortal
+    at _c7 (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/src/components/ui/select.tsx:122:12)
+    at Provider (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-6J5IXUBZ.js?v=b578f586:48:15)
+    at Provider (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-MRB2OOEX.js?v=b578f586:28:15)
+    at CollectionProvider (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-MRB2OOEX.js?v=b578f586:89:13)
+    at Provider (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-6J5IXUBZ.js?v=b578f586:48:15)
+    at Provider (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-select.js?v=b578f586:1950:15)
+    at Popper (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-select.js?v=b578f586:2007:11)
+    at Select (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-select.js?v=b578f586:2285:5)
+    at div
+    at div
+    at div
+    at div
+    at div
+    at _c9 (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/src/components/ui/card.tsx:114:12)
+    at div
+    at _c (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/src/components/ui/card.tsx:20:11)
+    at ViewTeam (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/src/pages/ViewTeam.tsx:57:21)
+    at Route (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=b578f586:323:16)
+    at Switch…
+A  must have a value prop that is not an empty string. This is because the Select value can be set to an empty string to clear the selection and show the placeholder.
+at https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-select.js?v=b578f586:3069:13
+at renderWithHooks (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=b578f586:11548:26)
+at updateForwardRef (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=b578f586:14325:28)
+at beginWork (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=b578f586:15946:22)
+at beginWork$1 (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=b578f586:19753:22)
+at performUnitOfWork (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=b578f586:19198:20)
+at workLoopSync (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=b578f586:19137:13)
+at renderRootSync (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=b578f586:19116:15)
+at recoverFromConcurrentError (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=b578f586:18736:28)
+at performSyncWorkOnRoot (https://bc6b72ec-57f2-4ead-a132-5c12f2e85ce7-00-2db6tm327ieoq.riker.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-RPCDYKBN.js?v=b578f586:18879:28)
