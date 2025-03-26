@@ -128,7 +128,14 @@ export default function DataSync() {
       
       // Step 1: Send local changes to server
       if (matchesToSync.length > 0) {
-        console.log("Sending local match data to server...");
+        console.log(`Sending ${matchesToSync.length} local matches to server...`);
+        
+        // Ensure we're sending complete match data
+        const completeMatchesToSync = matchesToSync.map(match => ({
+          ...match,
+          syncStatus: 'pending',
+          timestamp: match.timestamp || Date.now()
+        }));
         
         const syncResponse = await apiRequest<{
           success: boolean;
@@ -137,7 +144,7 @@ export default function DataSync() {
         }>({
           endpoint: "/api/sync",
           method: "POST",
-          data: { matches: matchesToSync }
+          data: { matches: completeMatchesToSync }
         });
         
         if (syncResponse.success) {
