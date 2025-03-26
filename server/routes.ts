@@ -159,7 +159,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get all server match data - used for full sync
+  app.get("/api/sync/all", async (req, res) => {
+    try {
+      console.log("Fetching all match data for full client sync");
+      
+      // Fetch all match entries from the database
+      const allMatches = await db.select()
+        .from(matchEntries)
+        .orderBy(desc(matchEntries.timestamp));
+      
+      // Fetch all team statistics
+      const allTeams = await db.select()
+        .from(teamStatistics);
+      
+      console.log(`Sending full sync data: ${allMatches.length} matches, ${allTeams.length} teams`);
+      
+      res.json({
+        success: true,
+        matches: allMatches,
+        teams: allTeams,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error("Error fetching all data for sync:", error);
+      res.status(500).json({ error: "Failed to fetch sync data" });
+    }
+  });
+
   // Sync endpoint - allows the client to push local IndexedDB data to the server
+  // and receive latest data from server
   app.post("/api/sync", async (req, res) => {
     try {
       const { matches } = req.body;
@@ -172,6 +201,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true,
         syncedMatches: 0,
         errors: [] as string[],
+        // Include server data in the response to ensure client has all latest data
+        serverMatches: [] as any[]
       };
       
       // Process each match entry
@@ -221,6 +252,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const uniqueTeamsArray = Array.from(uniqueTeams);
       for (const team of uniqueTeamsArray) {
         await updateTeamStatistics(team);
+      }
+      
+      // Fetch all match data from server to send back to client
+      try {
+        // Get all match entries from the database
+        const serverMatchEntries = await db.select().from(matchEntries);
+        syncResults.serverMatches = serverMatchEntries;
+      } catch (error) {
+        console.error("Error fetching server matches:", error);
+        syncResults.errors.push(`Error fetching server matches: ${error}`);
       }
       
       // After successful sync, notify all connected clients

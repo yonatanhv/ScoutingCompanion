@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { teams } from "@/lib/teamData";
-import { exportAllData, importData, getDBStats, clearTeamData, clearAllData, getMatchEntry, updateMatchEntry, getMatchesBySyncStatus } from "@/lib/db";
+import { exportAllData, importData, getDBStats, clearTeamData, clearAllData, getMatchEntry, updateMatchEntry, getMatchesBySyncStatus, addMatchEntry, getFilteredMatches } from "@/lib/db";
 import { ExportData, MatchEntry } from "@/lib/types";
 import { saveAs } from 'file-saver';
 import { apiRequest } from "@/lib/queryClient";
@@ -113,57 +113,135 @@ export default function DataSync() {
     
     try {
       // Get all match entries
-      const data = await exportAllData();
+      const localData = await exportAllData();
       
       // Get matches that need to be synced - also include failed matches
-      const matchesToSync = data.matches.filter(match => 
+      const matchesToSync = localData.matches.filter(match => 
         !match.syncStatus || match.syncStatus === "pending" || match.syncStatus === "failed"
       );
       
-      if (matchesToSync.length === 0) {
-        toast({
-          title: "Nothing to sync",
-          description: "All match data is already synchronized",
+      console.log(`Found ${matchesToSync.length} local matches to sync with server`);
+      
+      // Two-step sync process:
+      // 1. First send our local changes to the server
+      // 2. Then get all data from the server to ensure we have everything
+      
+      // Step 1: Send local changes to server
+      if (matchesToSync.length > 0) {
+        console.log("Sending local match data to server...");
+        
+        const syncResponse = await apiRequest<{
+          success: boolean;
+          syncedMatches: number;
+          errors: string[];
+        }>({
+          endpoint: "/api/sync",
+          method: "POST",
+          data: { matches: matchesToSync }
         });
-        setIsSyncing(false);
-        return;
-      }
-      
-      // Sync with server
-      interface SyncResponse {
-        success: boolean;
-        syncedMatches: number;
-        errors: string[];
-      }
-      
-      const response = await apiRequest<SyncResponse>({
-        endpoint: "/api/sync",
-        method: "POST",
-        data: {
-          matches: matchesToSync
-        }
-      });
-      
-      if (response.success) {
-        // Update sync status for matches
-        for (const match of matchesToSync) {
-          if (match.id) {
-            // Update match entry sync status
-            const matchToUpdate = await getMatchEntry(match.id);
-            if (matchToUpdate) {
-              // Update match sync status locally
-              await updateMatchEntry({
-                ...matchToUpdate,
-                syncStatus: 'synced',
-                syncedAt: Date.now()
-              });
-              console.log(`Updated sync status for match ${match.id}`);
+        
+        if (syncResponse.success) {
+          console.log(`Successfully synced ${syncResponse.syncedMatches} matches to server`);
+          
+          // Update local sync status for matches we sent
+          for (const match of matchesToSync) {
+            if (match.id) {
+              const matchToUpdate = await getMatchEntry(match.id);
+              if (matchToUpdate) {
+                await updateMatchEntry({
+                  ...matchToUpdate,
+                  syncStatus: 'synced' as 'synced', // Type assertion to match enum
+                  syncedAt: Date.now()
+                });
+              }
             }
           }
+        } else {
+          console.error("Error syncing local matches:", syncResponse.errors);
+          throw new Error("Failed to sync local matches");
+        }
+      }
+      
+      // Step 2: Get ALL server data to ensure complete data set
+      console.log("Fetching all server data...");
+      
+      // Use the new dedicated endpoint to get all server data
+      const allServerDataResponse = await apiRequest<{
+        success: boolean;
+        matches: MatchEntry[];
+        teams: any[];
+        timestamp: number;
+      }>({
+        endpoint: "/api/sync/all",
+        method: "GET"
+      });
+      
+      if (allServerDataResponse.success && allServerDataResponse.matches) {
+        const serverMatches = allServerDataResponse.matches;
+        console.log(`Received ${serverMatches.length} matches from server`);
+        
+        let importedCount = 0;
+        let updatedCount = 0;
+        
+        // Process all server data
+        for (const serverMatch of serverMatches) {
+          try {
+            // Ensure server match is marked as synced
+            const syncedMatch = {
+              ...serverMatch,
+              syncStatus: 'synced' as 'synced', // Type assertion to match enum
+              syncedAt: allServerDataResponse.timestamp || Date.now()
+            };
+            
+            // Check if we already have this match
+            const existingMatches = await getFilteredMatches({
+              teamNumber: serverMatch.team,
+              matchType: serverMatch.matchType
+            });
+            
+            if (existingMatches.length === 0) {
+              // New match from server - add it
+              await addMatchEntry(syncedMatch);
+              importedCount++;
+              console.log(`Added new match from server: Team ${serverMatch.team}, Match ${serverMatch.matchNumber}`);
+            } else {
+              // We have this match locally - check if server version is newer
+              const existingMatch = existingMatches[0];
+                
+              // Only update if server data is newer or has a different sync status
+              const serverTimestamp = serverMatch.timestamp || 0;
+              const localTimestamp = existingMatch.timestamp || 0;
+              
+              if (serverTimestamp > localTimestamp) {
+                console.log(`Server match for team ${serverMatch.team} is newer (${serverTimestamp} > ${localTimestamp})`);
+                await updateMatchEntry({
+                  ...syncedMatch,
+                  id: existingMatch.id, // Keep the local ID
+                  syncStatus: 'synced' as 'synced' // Ensure correct type
+                });
+                updatedCount++;
+              }
+            }
+          } catch (error) {
+            console.error("Error processing server match:", error);
+          }
+        }
+        
+        // Build notification message
+        const notifications = [];
+        if (matchesToSync.length > 0) {
+          notifications.push(`Sent ${matchesToSync.length} matches to server`);
+        }
+        if (importedCount > 0) {
+          notifications.push(`Imported ${importedCount} new matches from server`);
+        }
+        if (updatedCount > 0) {
+          notifications.push(`Updated ${updatedCount} existing matches`);
         }
         
         // Update stats
         await checkPendingSyncs();
+        await loadDbStats();
         
         // Update server sync time
         const now = Date.now();
@@ -176,10 +254,10 @@ export default function DataSync() {
         vibrationSuccess();
         toast({
           title: "Sync successful",
-          description: `Synced ${response.syncedMatches} match entries with server`,
+          description: notifications.length > 0 ? notifications.join(', ') : "Synchronized with server",
         });
       } else {
-        throw new Error("Sync failed");
+        throw new Error("Failed to get server data");
       }
     } catch (error) {
       console.error("Error syncing with server:", error);
@@ -255,14 +333,24 @@ export default function DataSync() {
           description: `Team ${data.matchData.team} (${teamName}) data received from ${data.matchData.scoutedBy || 'another device'}`,
         });
         
+        // First, force the data to be marked as synced
+        const syncedData = {
+          ...data.matchData,
+          syncStatus: 'synced' as 'synced', // Type assertion to match enum
+          syncedAt: Date.now()
+        };
+        
         // Save the received match data to our database
         import('@/lib/db').then(({ addMatchEntry }) => {
-          addMatchEntry(data.matchData)
+          addMatchEntry(syncedData)
             .then(() => {
               console.log("Successfully saved match data from WebSocket");
               // Update stats after adding the match
               loadDbStats();
               checkPendingSyncs();
+              
+              // Log success details for debugging
+              console.log(`Match data saved: Team ${syncedData.team}, Match ${syncedData.matchNumber}, ID: ${syncedData.id}`);
             })
             .catch(err => {
               console.error("Error saving WebSocket match data:", err);
