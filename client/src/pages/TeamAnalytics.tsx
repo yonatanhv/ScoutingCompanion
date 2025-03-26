@@ -20,8 +20,8 @@ import { formSubmitVibration } from "@/lib/haptics";
 export default function TeamAnalytics() {
   const [, setLocation] = useLocation();
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
-  const [matchFilter, setMatchFilter] = useState<string>("");
-  const [climbingFilter, setClimbingFilter] = useState<string>("");
+  const [matchFilter, setMatchFilter] = useState<string>("all_match_types");
+  const [climbingFilter, setClimbingFilter] = useState<string>("all_climbing");
   const [minScoreFilter, setMinScoreFilter] = useState<number | null>(null);
   const [teamStats, setTeamStats] = useState<TeamStatistics | null>(null);
   const [matches, setMatches] = useState<MatchEntry[]>([]);
@@ -62,11 +62,13 @@ export default function TeamAnalytics() {
       
       // Apply filters if any are selected
       let filteredMatches = teamMatches;
-      if (matchFilter || climbingFilter || minScoreFilter) {
+      if ((matchFilter && matchFilter !== "all_match_types") || 
+          (climbingFilter && climbingFilter !== "all_climbing") || 
+          minScoreFilter) {
         filteredMatches = await getFilteredMatches({
           teamNumber,
-          matchType: matchFilter || undefined,
-          climbing: climbingFilter || undefined,
+          matchType: matchFilter && matchFilter !== "all_match_types" ? matchFilter : undefined,
+          climbing: climbingFilter && climbingFilter !== "all_climbing" ? climbingFilter : undefined,
           minOverallScore: minScoreFilter || undefined
         });
       }
@@ -119,8 +121,8 @@ export default function TeamAnalytics() {
   };
 
   const resetFilters = () => {
-    setMatchFilter("");
-    setClimbingFilter("");
+    setMatchFilter("all_match_types");
+    setClimbingFilter("all_climbing");
     setMinScoreFilter(null);
     
     if (selectedTeam) {
@@ -168,7 +170,7 @@ export default function TeamAnalytics() {
                       <SelectValue placeholder="Match Type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Match Types</SelectItem>
+                      <SelectItem value="all_match_types">All Match Types</SelectItem>
                       {matchTypes.map(type => (
                         <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
                       ))}
@@ -180,7 +182,7 @@ export default function TeamAnalytics() {
                       <SelectValue placeholder="Climbing" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Climbing</SelectItem>
+                      <SelectItem value="all_climbing">All Climbing</SelectItem>
                       {climbingTypes.map(type => (
                         <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
                       ))}

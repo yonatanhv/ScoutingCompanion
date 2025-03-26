@@ -22,6 +22,19 @@ class WebSocketService {
   private reconnectTimeout: number | null = null;
   private listeners: Map<string, Set<WebSocketListenerCallback>> = new Map();
   private pendingMessages: WebSocketMessage[] = [];
+  
+  // Device identification for cross-device sync
+  private deviceId: string;
+  private scoutName: string;
+  
+  constructor() {
+    // Initialize device identifier
+    const storedDeviceId = localStorage.getItem('device_id');
+    this.deviceId = storedDeviceId || this.generateDeviceId();
+    
+    // Initialize scout name
+    this.scoutName = localStorage.getItem('scout_name') || '';
+  }
 
   /**
    * Connect to the WebSocket server
@@ -81,8 +94,20 @@ class WebSocketService {
    */
   sendMatchEntry(matchEntry: MatchEntry): void {
     console.log('Sending match entry via WebSocket:', matchEntry);
-    this.send('new_match', { matchData: matchEntry });
-    console.log('Match entry sent successfully');
+    
+    // Use the class properties for device ID and scout name
+    // (They're already initialized from localStorage in the constructor)
+    
+    // Create the enhanced match data with device info
+    const enhancedMatchData = {
+      ...matchEntry,
+      scoutedBy: this.scoutName || this.deviceId.split('_')[0],
+      deviceId: this.deviceId,
+      transmitTime: Date.now()
+    };
+    
+    this.send('new_match', { matchData: enhancedMatchData });
+    console.log('Match entry sent successfully with device info');
   }
 
   /**
@@ -162,6 +187,13 @@ class WebSocketService {
 
     // Notify app about connection status
     this.notifyListeners('connection_status', { connected: true });
+    
+    // Request sync from server to ensure we have the latest data
+    // Do this with a slight delay to ensure handlers are set up
+    setTimeout(() => {
+      this.requestSync();
+      console.log('Requested sync after connection established');
+    }, 1000);
   }
 
   /**
@@ -260,6 +292,47 @@ class WebSocketService {
    */
   isSocketConnected(): boolean {
     return this.isConnected && !!this.socket && this.socket.readyState === WebSocket.OPEN;
+  }
+  
+  /**
+   * Generate a unique device ID
+   */
+  private generateDeviceId(): string {
+    const deviceId = `device_${Math.random().toString(36).substring(2, 11)}_${Date.now()}`;
+    localStorage.setItem('device_id', deviceId);
+    return deviceId;
+  }
+  
+  /**
+   * Get the current device ID
+   */
+  getDeviceId(): string {
+    return this.deviceId;
+  }
+  
+  /**
+   * Get the current scout name
+   */
+  getScoutName(): string {
+    return this.scoutName;
+  }
+  
+  /**
+   * Set the scout name for this device
+   */
+  setScoutName(name: string): void {
+    if (name && name.trim()) {
+      this.scoutName = name.trim();
+      localStorage.setItem('scout_name', this.scoutName);
+      
+      // Inform the server about the name change if connected
+      if (this.isSocketConnected()) {
+        this.send('scout_name_change', { 
+          deviceId: this.deviceId,
+          scoutName: this.scoutName 
+        });
+      }
+    }
   }
 }
 

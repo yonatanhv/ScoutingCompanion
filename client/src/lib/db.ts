@@ -110,18 +110,29 @@ export async function initDB(): Promise<void> {
 
 // Add a new match entry
 export async function addMatchEntry(entry: Omit<MatchEntry, 'id'> | MatchEntry): Promise<number> {
-  // Check if this is an entry from another device (has id)
-  if ('id' in entry && entry.id !== undefined) {
-    // Check if we already have this entry
-    try {
+  try {
+    // Check if this is an entry from another device (has id)
+    if ('id' in entry && entry.id !== undefined) {
+      // Check if we already have this entry
       const existingEntry = await getMatchEntry(entry.id);
+      
       if (existingEntry) {
-        console.log(`Entry with ID ${entry.id} already exists, updating instead`);
-        // Update it with the latest data
-        await db.put('matches', {
-          ...entry,
-          syncStatus: entry.syncStatus || 'synced' // Mark as synced if received from WebSocket
-        });
+        console.log(`Entry with ID ${entry.id} already exists, checking for updates`);
+        
+        // Determine which entry is newer based on timestamp
+        const incomingTimestamp = entry.transmitTime || entry.timestamp || 0;
+        const existingTimestamp = existingEntry.transmitTime || existingEntry.timestamp || 0;
+        
+        // If the incoming entry is newer, update our record
+        if (incomingTimestamp > existingTimestamp) {
+          console.log(`Incoming entry is newer (${incomingTimestamp} > ${existingTimestamp}), updating`);
+          await db.put('matches', {
+            ...entry,
+            syncStatus: entry.syncStatus || 'synced' // Mark as synced if received from WebSocket
+          });
+        } else {
+          console.log(`Existing entry is newer or same age, keeping our version`);
+        }
       } else {
         // Add the new entry with its original ID
         console.log(`Adding entry with provided ID ${entry.id} from other device`);
@@ -130,23 +141,60 @@ export async function addMatchEntry(entry: Omit<MatchEntry, 'id'> | MatchEntry):
           syncStatus: entry.syncStatus || 'synced' // Mark as synced if received from WebSocket
         });
       }
+      
       await updateTeamStatistics(entry.team);
       return entry.id;
-    } catch (error) {
-      console.error('Error processing entry from other device:', error);
-      throw error;
+    } else {
+      // This is a new local entry
+      
+      // Add device identifier
+      const deviceId = localStorage.getItem('device_id') || 
+        `device_${Math.random().toString(36).substring(2, 11)}_${Date.now()}`;
+      
+      // Store the device ID for future use
+      if (!localStorage.getItem('device_id')) {
+        localStorage.setItem('device_id', deviceId);
+      }
+      
+      // Add the scout's identifier if available, or use device ID
+      const scoutedBy = localStorage.getItem('scout_name') || deviceId.split('_')[0];
+      
+      // Set initial sync status and metadata
+      const entryWithMetadata = {
+        ...entry,
+        syncStatus: (entry as any).syncStatus || 'pending',
+        deviceId,
+        scoutedBy,
+        transmitTime: Date.now()
+      } as MatchEntry;
+      
+      // Add to local database
+      const id = await db.add('matches', entryWithMetadata);
+      
+      // Update team statistics
+      await updateTeamStatistics(entry.team);
+      
+      // Attempt to sync immediately if online
+      if (navigator.onLine) {
+        try {
+          // Import webSocketService without creating circular dependencies
+          const { webSocketService } = await import('./websocket');
+          if (webSocketService.isSocketConnected()) {
+            const newEntry = await getMatchEntry(id);
+            if (newEntry) {
+              webSocketService.sendMatchEntry(newEntry);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to sync new entry immediately:', error);
+        }
+      }
+      
+      return id;
     }
-  } else {
-    // Set initial sync status if not provided for local entries
-    const entryWithSyncStatus = {
-      ...entry,
-      syncStatus: (entry as any).syncStatus || 'pending'
-    } as MatchEntry;
-    
-    // Regular local entry
-    const id = await db.add('matches', entryWithSyncStatus);
-    await updateTeamStatistics(entry.team);
-    return id;
+  } catch (error) {
+    console.error('Error adding match entry:', error);
+    throw error;
   }
 }
 
@@ -301,34 +349,117 @@ export async function exportAllData(): Promise<{
 export async function importData(
   data: { matches: MatchEntry[]; teams: TeamStatistics[] },
   mode: 'merge' | 'replace'
-): Promise<void> {
-  // Clear existing data if replacing
-  if (mode === 'replace') {
-    const matchesStore = db.transaction('matches', 'readwrite').objectStore('matches');
-    await matchesStore.clear();
+): Promise<number> {
+  try {
+    // Track the number of imported matches for reporting
+    let importedCount = 0;
     
-    const teamsStore = db.transaction('teams', 'readwrite').objectStore('teams');
-    await teamsStore.clear();
-  }
-  
-  // Import matches
-  const tx = db.transaction('matches', 'readwrite');
-  for (const match of data.matches) {
-    // Check if match already exists when merging
-    if (mode === 'merge' && match.id) {
-      const existing = await tx.store.get(match.id);
-      if (existing) continue;
+    // Clear existing data if replacing
+    if (mode === 'replace') {
+      const matchesStore = db.transaction('matches', 'readwrite').objectStore('matches');
+      await matchesStore.clear();
+      
+      const teamsStore = db.transaction('teams', 'readwrite').objectStore('teams');
+      await teamsStore.clear();
+      
+      // Re-initialize team data since we cleared it
+      const teamsTx = db.transaction('teams', 'readwrite');
+      for (const [teamNumber, teamName] of teams) {
+        await teamsTx.store.put(createDefaultTeamStats(teamNumber, teamName));
+      }
+      await teamsTx.done;
     }
     
-    // Remove ID to allow auto-incrementing
-    const { id, ...matchWithoutId } = match;
-    tx.store.add(matchWithoutId as MatchEntry);
-  }
-  await tx.done;
-  
-  // Update team statistics
-  for (const team of teams) {
-    await updateTeamStatistics(team[0]);
+    // Import matches with conflict resolution
+    const tx = db.transaction('matches', 'readwrite');
+    
+    for (const match of data.matches) {
+      try {
+        // Handle merge mode with conflict resolution
+        if (mode === 'merge' && match.id) {
+          const existing = await tx.store.get(match.id);
+          
+          if (existing) {
+            // Compare timestamps to determine which is newer
+            const incomingTimestamp = match.transmitTime || match.timestamp || 0;
+            const existingTimestamp = existing.transmitTime || existing.timestamp || 0;
+            
+            if (incomingTimestamp > existingTimestamp) {
+              // The imported entry is newer
+              await tx.store.put({
+                ...match,
+                // Preserve the sync status unless the imported entry is explicitly marked as synced
+                syncStatus: match.syncStatus === 'synced' ? 'synced' : existing.syncStatus
+              });
+              importedCount++;
+            }
+            // If existing is newer, skip this entry
+            continue;
+          }
+        }
+        
+        // For new entries or in replace mode
+        if (match.id) {
+          // Keep original ID for entries that have one
+          await tx.store.put({
+            ...match,
+            // Mark as pending unless explicitly marked as synced
+            syncStatus: match.syncStatus === 'synced' ? 'synced' : 'pending'
+          });
+        } else {
+          // Remove ID to allow auto-incrementing for entries without ID
+          const { id, ...matchWithoutId } = match as any;
+          await tx.store.add({
+            ...matchWithoutId,
+            syncStatus: 'pending' // New entries need to be synced
+          });
+        }
+        importedCount++;
+      } catch (error) {
+        console.error(`Error importing match:`, match, error);
+        // Continue with other matches even if one fails
+      }
+    }
+    
+    await tx.done;
+    
+    // Update team statistics for all teams
+    // Create an array of unique team numbers from both imported data and existing teams
+    const uniqueTeams = Array.from(
+      new Set<string>([
+        ...data.matches.map(m => m.team),
+        ...teams.map(t => t[0])
+      ])
+    );
+    
+    // Update statistics for each affected team
+    for (const teamNumber of uniqueTeams) {
+      await updateTeamStatistics(teamNumber);
+    }
+    
+    // If we're online, try to sync pending entries
+    if (navigator.onLine) {
+      try {
+        const pendingMatches = await getMatchesBySyncStatus('pending');
+        if (pendingMatches.length > 0) {
+          console.log(`Attempting to sync ${pendingMatches.length} pending matches after import`);
+          
+          // We'll do this in the background, not awaiting
+          import('./websocket').then(({ webSocketService }) => {
+            if (webSocketService.isSocketConnected()) {
+              webSocketService.send('sync_request', { pendingCount: pendingMatches.length });
+            }
+          }).catch(e => console.error('Failed to request sync after import:', e));
+        }
+      } catch (e) {
+        console.error('Error checking for pending matches after import:', e);
+      }
+    }
+    
+    return importedCount;
+  } catch (error) {
+    console.error('Error importing data:', error);
+    throw error;
   }
 }
 

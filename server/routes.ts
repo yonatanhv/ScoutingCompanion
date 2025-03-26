@@ -276,11 +276,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
         else if (data.type === 'new_match') {
           // Broadcast new match data to all other clients
           console.log('New match data received, broadcasting to all clients');
-          broadcastToOthers(ws, {
-            type: 'new_match',
-            matchData: data.matchData,
-            timestamp: Date.now()
-          });
+          
+          // Save the match entry to the database first
+          try {
+            if (data.matchData) {
+              const { id, ...matchData } = data.matchData;
+              
+              // Validate the match data
+              const parsed = insertMatchEntrySchema.safeParse(matchData);
+              if (parsed.success) {
+                // Check if this match already exists
+                const [existingMatch] = await db.select()
+                  .from(matchEntries)
+                  .where(
+                    and(
+                      eq(matchEntries.team, matchData.team),
+                      eq(matchEntries.matchType, matchData.matchType),
+                      eq(matchEntries.matchNumber, matchData.matchNumber)
+                    )
+                  );
+                
+                if (existingMatch) {
+                  // Update the existing match
+                  await db.update(matchEntries)
+                    .set({ ...parsed.data, syncStatus: "synced" })
+                    .where(eq(matchEntries.id, existingMatch.id));
+                  
+                  console.log(`Updated existing match entry for team ${matchData.team} match ${matchData.matchNumber}`);
+                } else {
+                  // Insert new match
+                  const [newMatch] = await db.insert(matchEntries)
+                    .values({ ...parsed.data, syncStatus: "synced" })
+                    .returning();
+                  
+                  console.log(`Inserted new match entry for team ${matchData.team}, ID ${newMatch.id}`);
+                }
+                
+                // Update team statistics
+                await updateTeamStatistics(matchData.team);
+                
+                // Now broadcast to all OTHER clients
+                broadcastToOthers(ws, {
+                  type: 'new_match',
+                  matchData: data.matchData,
+                  timestamp: Date.now()
+                });
+                
+                // Also broadcast sync_completed to notify all clients to check for server updates
+                setTimeout(() => {
+                  broadcastToAll({
+                    type: 'sync_completed',
+                    teams: [matchData.team],
+                    timestamp: Date.now()
+                  });
+                }, 2000); // Delay to ensure the match is saved before clients query
+              } else {
+                console.error('Invalid match data received via WebSocket:', parsed.error);
+              }
+            }
+          } catch (error) {
+            console.error('Error saving match from WebSocket:', error);
+          }
         }
       } catch (error) {
         console.error('Error handling WebSocket message:', error);

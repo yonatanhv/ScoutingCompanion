@@ -32,6 +32,12 @@ export default function DataSync() {
   // WebSocket connection state
   const [wsConnected, setWsConnected] = useState(false);
   
+  // Scout identification
+  const [scoutName, setScoutName] = useState<string>(
+    localStorage.getItem('scout_name') || ''
+  );
+  const [showScoutDialog, setShowScoutDialog] = useState(false);
+  
   // Export options
   const [exportType, setExportType] = useState("all");
   const [exportTeam, setExportTeam] = useState("");
@@ -109,9 +115,9 @@ export default function DataSync() {
       // Get all match entries
       const data = await exportAllData();
       
-      // Get matches that need to be synced
+      // Get matches that need to be synced - also include failed matches
       const matchesToSync = data.matches.filter(match => 
-        !match.syncStatus || match.syncStatus === "pending"
+        !match.syncStatus || match.syncStatus === "pending" || match.syncStatus === "failed"
       );
       
       if (matchesToSync.length === 0) {
@@ -578,8 +584,16 @@ export default function DataSync() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
             <h2 className="text-xl font-bold">Export & Import Data</h2>
             
-            {/* Server sync button - moved to the top for better visibility on mobile */}
-            <div className="mt-3 sm:mt-0">
+            {/* Server sync and scout name buttons */}
+            <div className="mt-3 sm:mt-0 flex gap-2">
+              <Button 
+                variant="outline"
+                className="w-auto text-sm"
+                onClick={() => setShowScoutDialog(true)}
+              >
+                {scoutName ? `Scout: ${scoutName}` : 'Set Scout Name'}
+              </Button>
+              
               <Button 
                 className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-medium"
                 onClick={handleServerSync}
@@ -937,6 +951,68 @@ export default function DataSync() {
               onClick={handleClearAll}
             >
               Delete All Data
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Scout Name Dialog */}
+      <Dialog open={showScoutDialog} onOpenChange={setShowScoutDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set Scout Name</DialogTitle>
+            <DialogDescription>
+              Enter your name to identify yourself when scouting matches. 
+              This helps track who collected data across different devices.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="my-4">
+            <Label htmlFor="scout-name">Your Name</Label>
+            <Input
+              id="scout-name"
+              placeholder="Enter your name"
+              value={scoutName}
+              onChange={(e) => setScoutName(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline"
+              onClick={() => setShowScoutDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                if (scoutName.trim()) {
+                  // Save scout name to localStorage
+                  localStorage.setItem('scout_name', scoutName.trim());
+                  
+                  // Update WebSocket service with new scout name
+                  import('@/lib/websocket').then(({ webSocketService }) => {
+                    webSocketService.setScoutName(scoutName.trim());
+                    
+                    toast({
+                      title: "Scout Name Saved",
+                      description: `Your scout name is now set to "${scoutName.trim()}"`,
+                    });
+                    
+                    setShowScoutDialog(false);
+                  });
+                } else {
+                  toast({
+                    title: "Invalid Name",
+                    description: "Please enter a valid name",
+                    variant: "destructive"
+                  });
+                }
+              }}
+              disabled={!scoutName.trim()}
+            >
+              Save Name
             </Button>
           </DialogFooter>
         </DialogContent>

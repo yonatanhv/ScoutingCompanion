@@ -31,10 +31,14 @@ export interface MatchEntry {
   // Metadata
   timestamp: number;
   
+  // Cross-device sync metadata
+  deviceId?: string;           // Unique identifier for the device that created this entry
+  transmitTime?: number;       // Timestamp when the entry was last transmitted
+  
   // Sync status for server synchronization
   syncStatus?: 'pending' | 'synced' | 'failed';
-  syncedAt?: number;
-  scoutedBy?: string;
+  syncedAt?: number;           // Timestamp when the entry was synced with the server
+  scoutedBy?: string;          // Name/identifier of the person who scouted this match
 }
 
 // Team statistics

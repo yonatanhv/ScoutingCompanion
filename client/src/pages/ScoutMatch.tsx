@@ -114,7 +114,7 @@ export default function ScoutMatch() {
         ...formData,
         timestamp: Date.now(),
         syncStatus: 'pending' as 'pending' | 'synced' | 'failed',
-        scoutedBy: localStorage.getItem('scoutName') || 'unknown'
+        scoutedBy: localStorage.getItem('scout_name') || 'unknown'
       };
       
       // Save to IndexedDB
@@ -123,11 +123,12 @@ export default function ScoutMatch() {
       // Broadcast to other connected devices via WebSocket
       if (navigator.onLine && webSocketService.isSocketConnected()) {
         try {
+          // Use the WebSocketService to send - it will automatically add deviceId and scout name
           webSocketService.sendMatchEntry({
             ...entry,
             id: entryId
           });
-          console.log("New match entry broadcasted via WebSocket");
+          console.log("New match entry broadcasted via WebSocket with scout info");
         } catch (wsError) {
           console.error("Failed to broadcast match entry via WebSocket:", wsError);
         }

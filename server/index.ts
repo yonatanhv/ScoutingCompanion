@@ -73,12 +73,13 @@ app.use((req, res, next) => {
 
     // Start server
     const port = 5000;
+    const host = "0.0.0.0";
     server.listen({
       port,
-      host: "0.0.0.0",
+      host,
       reusePort: true,
     }, () => {
-      log(`serving on port ${port}`);
+      log(`serving on ${host}:${port}`);
     });
   } catch (error) {
     log(`Fatal server error: ${(error as Error).message}`, "error");
