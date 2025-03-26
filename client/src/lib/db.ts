@@ -109,16 +109,45 @@ export async function initDB(): Promise<void> {
 }
 
 // Add a new match entry
-export async function addMatchEntry(entry: Omit<MatchEntry, 'id'>): Promise<number> {
-  // Set initial sync status if not provided
-  const entryWithSyncStatus = {
-    ...entry,
-    syncStatus: entry.syncStatus || 'pending'
-  } as MatchEntry;
-  
-  const id = await db.add('matches', entryWithSyncStatus);
-  await updateTeamStatistics(entry.team);
-  return id;
+export async function addMatchEntry(entry: Omit<MatchEntry, 'id'> | MatchEntry): Promise<number> {
+  // Check if this is an entry from another device (has id)
+  if ('id' in entry && entry.id !== undefined) {
+    // Check if we already have this entry
+    try {
+      const existingEntry = await getMatchEntry(entry.id);
+      if (existingEntry) {
+        console.log(`Entry with ID ${entry.id} already exists, updating instead`);
+        // Update it with the latest data
+        await db.put('matches', {
+          ...entry,
+          syncStatus: entry.syncStatus || 'synced' // Mark as synced if received from WebSocket
+        });
+      } else {
+        // Add the new entry with its original ID
+        console.log(`Adding entry with provided ID ${entry.id} from other device`);
+        await db.put('matches', {
+          ...entry,
+          syncStatus: entry.syncStatus || 'synced' // Mark as synced if received from WebSocket
+        });
+      }
+      await updateTeamStatistics(entry.team);
+      return entry.id;
+    } catch (error) {
+      console.error('Error processing entry from other device:', error);
+      throw error;
+    }
+  } else {
+    // Set initial sync status if not provided for local entries
+    const entryWithSyncStatus = {
+      ...entry,
+      syncStatus: (entry as any).syncStatus || 'pending'
+    } as MatchEntry;
+    
+    // Regular local entry
+    const id = await db.add('matches', entryWithSyncStatus);
+    await updateTeamStatistics(entry.team);
+    return id;
+  }
 }
 
 // Get all match entries for a team

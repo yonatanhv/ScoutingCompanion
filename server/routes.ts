@@ -90,7 +90,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       finalQuery = finalQuery.orderBy(desc(matchEntries.timestamp));
       
-      const matches = await finalQuery;
+      const matches = await finalQuery.execute();
       res.json(matches);
     } catch (error) {
       console.error("Error getting match entries:", error);
@@ -274,8 +274,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Broadcast new match data to all other clients
           console.log('New match data received, broadcasting to all clients');
           broadcastToOthers(ws, {
-            type: 'match_update',
-            data: data.matchData,
+            type: 'new_match',
+            matchData: data.matchData,
             timestamp: Date.now()
           });
         }

@@ -80,7 +80,9 @@ class WebSocketService {
    * Send a new match entry to other connected clients
    */
   sendMatchEntry(matchEntry: MatchEntry): void {
+    console.log('Sending match entry via WebSocket:', matchEntry);
     this.send('new_match', { matchData: matchEntry });
+    console.log('Match entry sent successfully');
   }
 
   /**

@@ -230,7 +230,7 @@ export default function DataSync() {
       console.log('Received sync_completed event:', data);
       toast({
         title: "Sync Notification",
-        description: "Another device has synchronized data with the server. Reload to see updates.",
+        description: "Another device has synchronized data with the server",
       });
       // Refresh pending syncs count
       checkPendingSyncs();
@@ -239,14 +239,30 @@ export default function DataSync() {
     });
     
     // Listen for new match events
-    const matchUpdateListener = webSocketService.addListener('match_update', (data) => {
-      console.log('Received match_update event:', data);
-      toast({
-        title: "New Match Data",
-        description: "New match data has been added by another device.",
-      });
-      // Update stats
-      loadDbStats();
+    const matchUpdateListener = webSocketService.addListener('new_match', (data) => {
+      console.log('Received new_match event:', data);
+      if (data.matchData) {
+        const teamName = teams.find(([number]) => number === data.matchData.team)?.[1] || 'Unknown';
+        
+        toast({
+          title: "New Match Data",
+          description: `Team ${data.matchData.team} (${teamName}) data received from ${data.matchData.scoutedBy || 'another device'}`,
+        });
+        
+        // Save the received match data to our database
+        import('@/lib/db').then(({ addMatchEntry }) => {
+          addMatchEntry(data.matchData)
+            .then(() => {
+              console.log("Successfully saved match data from WebSocket");
+              // Update stats after adding the match
+              loadDbStats();
+              checkPendingSyncs();
+            })
+            .catch(err => {
+              console.error("Error saving WebSocket match data:", err);
+            });
+        });
+      }
     });
     
     // Check initial connection status
@@ -258,7 +274,7 @@ export default function DataSync() {
       syncCompletedListener();
       matchUpdateListener();
     };
-  }, []);
+  }, [toast]);
 
   // Format bytes to human-readable size
   const formatBytes = (bytes: number): string => {

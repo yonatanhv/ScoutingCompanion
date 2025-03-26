@@ -288,26 +288,36 @@ export default function ScoutMatch() {
               
               <div>
                 <Label className="block mb-1 font-medium">Alliance Color</Label>
-                <RadioGroup
-                  value={formData.alliance}
-                  onValueChange={(value) => updateFormData("alliance", value)}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="red" id="red" />
-                    <Label htmlFor="red" className="flex items-center">
-                      <span className="inline-block w-4 h-4 mr-1 bg-red-600 rounded-full"></span>
-                      Red
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="blue" id="blue" />
-                    <Label htmlFor="blue" className="flex items-center">
-                      <span className="inline-block w-4 h-4 mr-1 bg-blue-600 rounded-full"></span>
-                      Blue
-                    </Label>
-                  </div>
-                </RadioGroup>
+                <div className="flex space-x-4 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => updateFormData("alliance", "red")}
+                    className={`py-2 px-4 rounded-lg flex items-center justify-center border ${
+                      formData.alliance === "red" 
+                        ? "bg-red-600 text-white border-red-700" 
+                        : "bg-white text-gray-800 border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    <span className={`inline-block w-3 h-3 mr-2 rounded-full ${
+                      formData.alliance === "red" ? "bg-white" : "bg-red-600"
+                    }`}></span>
+                    Red
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateFormData("alliance", "blue")}
+                    className={`py-2 px-4 rounded-lg flex items-center justify-center border ${
+                      formData.alliance === "blue" 
+                        ? "bg-blue-600 text-white border-blue-700" 
+                        : "bg-white text-gray-800 border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    <span className={`inline-block w-3 h-3 mr-2 rounded-full ${
+                      formData.alliance === "blue" ? "bg-white" : "bg-blue-600"
+                    }`}></span>
+                    Blue
+                  </button>
+                </div>
               </div>
             </div>
             
