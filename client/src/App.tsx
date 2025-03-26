@@ -6,6 +6,8 @@ import MobileNav from "@/components/layout/MobileNav";
 import ScoutMatch from "@/pages/ScoutMatch";
 import ViewTeam from "@/pages/ViewTeam";
 import DataSync from "@/pages/DataSync";
+import TeamAnalytics from "@/pages/TeamAnalytics";
+import CloudBackup from "@/pages/CloudBackup";
 import NotFound from "@/pages/not-found";
 import { useToast } from "@/hooks/use-toast";
 import { BackgroundParticles } from "@/components/ui/background-particles";
@@ -25,6 +27,8 @@ function Router() {
       <Route path="/scout" component={ScoutMatch} />
       <Route path="/team" component={ViewTeam} />
       <Route path="/data" component={DataSync} />
+      <Route path="/analytics" component={TeamAnalytics} />
+      <Route path="/backup" component={CloudBackup} />
       <Route component={NotFound} />
     </Switch>
   );

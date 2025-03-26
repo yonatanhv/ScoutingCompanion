@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Download, Cpu } from "lucide-react";
+import { Download, Cpu, ClipboardCheck, Users, BarChart2, RefreshCw, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
-import useOnlineStatus from "@/hooks/use-online-status";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 import { formSubmitVibration } from "@/lib/haptics";
 
 // Interface for the PWA install prompt
@@ -87,6 +87,21 @@ export default function Header() {
     formSubmitVibration(); // Use our haptics utility
   };
 
+  const [location] = useLocation();
+
+  const navItems = [
+    { path: '/scout', label: 'Scout', icon: <ClipboardCheck className="h-5 w-5" /> },
+    { path: '/team', label: 'Teams', icon: <Users className="h-5 w-5" /> },
+    { path: '/analytics', label: 'Analytics', icon: <BarChart2 className="h-5 w-5" /> },
+    { path: '/data', label: 'Sync', icon: <RefreshCw className="h-5 w-5" /> },
+    { path: '/backup', label: 'Backup', icon: <Database className="h-5 w-5" /> }
+  ];
+
+  const handleNavClick = (path: string) => {
+    triggerHapticFeedback();
+    navigate(path);
+  };
+
   return (
     <header className="bg-primary/95 text-primary-foreground py-3 px-4 shadow-md transition-colors duration-300 backdrop-blur-sm">
       <div className="container mx-auto flex justify-between items-center">
@@ -105,6 +120,24 @@ export default function Header() {
             </div>
           </div>
         </div>
+        
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex space-x-4">
+          {navItems.map((item) => (
+            <div 
+              key={item.path}
+              onClick={() => handleNavClick(item.path)}
+              className={`flex items-center space-x-1 px-3 py-2 rounded-md cursor-pointer transition-colors duration-200 ${
+                location === item.path 
+                  ? 'bg-primary-foreground/20 text-primary-foreground' 
+                  : 'hover:bg-primary-foreground/10'
+              }`}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </div>
+          ))}
+        </nav>
         
         <div className="flex items-center gap-3">
           <div className={`offline-indicator ${isOnline ? 'online' : ''}`}>

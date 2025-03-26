@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
-import { matchEntries, insertMatchEntrySchema, teamStatistics, insertTeamStatisticsSchema } from "@shared/schema";
+import { matchEntries, insertMatchEntrySchema, teamStatistics, insertTeamStatisticsSchema, cloudBackups } from "@shared/schema";
 import { WebSocketServer, WebSocket } from 'ws';
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -319,6 +319,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
   }
+  
+  // Cloud backup endpoints
+  app.post("/api/cloud/backup", async (req, res) => {
+    try {
+      const { username, backup } = req.body;
+      
+      if (!username || !backup) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      // Store the backup in the database with username and timestamp
+      const [result] = await db.insert(cloudBackups)
+        .values({
+          username,
+          data: backup,
+          createdAt: new Date()
+        })
+        .returning();
+      
+      res.json({ 
+        success: true, 
+        backupId: result.id,
+        message: "Backup created successfully" 
+      });
+    } catch (error) {
+      console.error("Error creating cloud backup:", error);
+      res.status(500).json({ error: "Failed to create backup" });
+    }
+  });
+  
+  app.get("/api/cloud/backups/:username", async (req, res) => {
+    try {
+      const username = req.params.username;
+      
+      // Get all backups for this user, ordered by creation date (newest first)
+      const backups = await db.select({
+        id: cloudBackups.id,
+        createdAt: cloudBackups.createdAt,
+        size: cloudBackups.size
+      })
+      .from(cloudBackups)
+      .where(eq(cloudBackups.username, username))
+      .orderBy(desc(cloudBackups.createdAt));
+      
+      res.json(backups);
+    } catch (error) {
+      console.error("Error fetching backups:", error);
+      res.status(500).json({ error: "Failed to fetch backups" });
+    }
+  });
+  
+  app.get("/api/cloud/backup/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid backup ID" });
+      }
+      
+      // Get the specific backup
+      const [backup] = await db.select()
+        .from(cloudBackups)
+        .where(eq(cloudBackups.id, id));
+      
+      if (!backup) {
+        return res.status(404).json({ error: "Backup not found" });
+      }
+      
+      res.json(backup);
+    } catch (error) {
+      console.error("Error fetching backup:", error);
+      res.status(500).json({ error: "Failed to fetch backup" });
+    }
+  });
+  
+  app.delete("/api/cloud/backup/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid backup ID" });
+      }
+      
+      // Delete the backup
+      await db.delete(cloudBackups)
+        .where(eq(cloudBackups.id, id));
+      
+      res.json({ success: true, message: "Backup deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting backup:", error);
+      res.status(500).json({ error: "Failed to delete backup" });
+    }
+  });
   
   // WebSocket notification is now integrated into the main sync endpoint above
   

@@ -95,3 +95,20 @@ export const insertTeamStatisticsSchema = createInsertSchema(teamStatistics).omi
 
 export type InsertTeamStatistics = z.infer<typeof insertTeamStatisticsSchema>;
 export type TeamStatistics = typeof teamStatistics.$inferSelect;
+
+// Cloud backups table
+export const cloudBackups = pgTable("cloud_backups", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull(),
+  data: jsonb("data").notNull(),
+  size: integer("size").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertCloudBackupSchema = createInsertSchema(cloudBackups).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertCloudBackup = z.infer<typeof insertCloudBackupSchema>;
+export type CloudBackup = typeof cloudBackups.$inferSelect;

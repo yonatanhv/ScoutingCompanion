@@ -38,7 +38,8 @@ export function useOnlineStatus() {
     return status;
   };
 
-  return { isOnline, checkOnlineStatus };
+  // Return object includes online property for backward compatibility
+  return { isOnline, checkOnlineStatus, online: isOnline };
 }
 
 export default useOnlineStatus;
