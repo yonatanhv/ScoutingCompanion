@@ -150,6 +150,57 @@ export async function exportData(): Promise<ExportData> {
   };
 }
 
+// Process the match data before importing
+function processMatchData(match: any) {
+  return {
+    ...match,
+    defense: Number(match.defense) || 0,
+    avoidingDefense: Number(match.avoidingDefense) || 0,
+    scoringAlgae: Number(match.scoringAlgae) || 0,
+    scoringCorals: Number(match.scoringCorals) || 0,
+    autonomous: Number(match.autonomous) || 0,
+    drivingSkill: Number(match.drivingSkill) || 0,
+    overall: Number(match.overall) || 0,
+    matchNumber: Number(match.matchNumber) || 0,
+    timestamp: match.timestamp || Date.now(),
+    climbing: match.climbing || 'none',
+    comments: match.comments || '',
+    syncStatus: 'pending'
+  };
+}
+
+export async function importData(data: ExportData, mode: 'merge' | 'replace'): Promise<number> {
+  if (!db) await initDB();
+  const tx = db.transaction('matches', 'readwrite');
+  const store = tx.objectStore('matches');
+  
+  // Clear existing data if in replace mode
+  if (mode === 'replace') {
+    await store.clear();
+  }
+  
+  let count = 0;
+  // Process each match before storing
+  for (const match of data.matches) {
+    const processedMatch = processMatchData(match);
+    
+    if (mode === 'merge') {
+      // Check for existing match
+      const existing = await store.index('teamMatch').get([processedMatch.team, processedMatch.matchNumber]);
+      if (!existing) {
+        await store.add(processedMatch);
+        count++;
+      }
+    } else {
+      await store.add(processedMatch);
+      count++;
+    }
+  }
+  
+  await tx.done;
+  return count;
+}
+
 export async function importData(data: ExportData, mode: 'merge' | 'replace'): Promise<number> {
   if (!db) await initDB();
   
