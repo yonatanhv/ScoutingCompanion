@@ -83,14 +83,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Apply where conditions and add ordering
-      let finalQuery = query;
+      let matches;
       if (conditions.length > 0) {
-        finalQuery = finalQuery.where(and(...conditions));
+        matches = await query
+          .where(and(...conditions))
+          .orderBy(desc(matchEntries.timestamp))
+          .execute();
+      } else {
+        matches = await query
+          .orderBy(desc(matchEntries.timestamp))
+          .execute();
       }
-      
-      finalQuery = finalQuery.orderBy(desc(matchEntries.timestamp));
-      
-      const matches = await finalQuery.execute();
       res.json(matches);
     } catch (error) {
       console.error("Error getting match entries:", error);

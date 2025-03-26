@@ -11,9 +11,9 @@ import { getTeamStatistics, getTeamMatches, getFilteredMatches } from "@/lib/db"
 import { TeamStatistics, MatchEntry } from "@/lib/types";
 import { teams, matchTypes, climbingTypes } from "@/lib/teamData";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { PerformanceTrend } from "@/components/PerformanceTrend";
-import { StatisticalInsights } from "@/components/StatisticalInsights";
-import { TeamComparison } from "@/components/TeamComparison";
+import { PerformanceTrend } from "../components/PerformanceTrend";
+import { StatisticalInsights } from "../components/StatisticalInsights";
+import { TeamComparison } from "../components/TeamComparison";
 import { webSocketService } from "@/lib/websocket";
 import { formSubmitVibration } from "@/lib/haptics";
 
@@ -170,7 +170,7 @@ export default function TeamAnalytics() {
                     <SelectContent>
                       <SelectItem value="">All Match Types</SelectItem>
                       {matchTypes.map(type => (
-                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                        <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -182,7 +182,7 @@ export default function TeamAnalytics() {
                     <SelectContent>
                       <SelectItem value="">All Climbing</SelectItem>
                       {climbingTypes.map(type => (
-                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                        <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

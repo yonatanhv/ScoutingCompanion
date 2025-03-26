@@ -1,19 +1,9 @@
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  BarChart, 
-  Bar, 
-  PieChart, 
-  Pie, 
-  Cell, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer 
-} from 'recharts';
-import { MatchEntry, TeamStatistics } from '@/lib/types';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
+import { TeamStatistics, MatchEntry } from '@/lib/types';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 interface StatisticalInsightsProps {
   teamStats: TeamStatistics;
@@ -21,145 +11,301 @@ interface StatisticalInsightsProps {
 }
 
 export function StatisticalInsights({ teamStats, matches }: StatisticalInsightsProps) {
-  // Prepare data for the ratings bar chart
-  const ratingData = [
-    { name: 'Defense', value: teamStats.averages.defense },
-    { name: 'Avoid Defense', value: teamStats.averages.avoidingDefense },
-    { name: 'Scoring Algae', value: teamStats.averages.scoringAlgae },
-    { name: 'Scoring Corals', value: teamStats.averages.scoringCorals },
-    { name: 'Autonomous', value: teamStats.averages.autonomous },
-    { name: 'Driving', value: teamStats.averages.drivingSkill },
-    { name: 'Overall', value: teamStats.averages.overall },
-  ];
-
-  // Prepare data for the climbing pie chart
+  // Process climbing data for pie chart
   const climbingData = [
-    { name: 'None', value: teamStats.climbingStats.none, color: '#FF8042' },
-    { name: 'Low', value: teamStats.climbingStats.low, color: '#00C49F' },
-    { name: 'High', value: teamStats.climbingStats.high, color: '#0088FE' },
-  ];
-
-  // Prepare data for matchType distribution
-  const matchTypeData = () => {
-    const distribution: Record<string, number> = {};
+    { name: 'High', value: teamStats.climbingStats.high },
+    { name: 'Low', value: teamStats.climbingStats.low },
+    { name: 'None', value: teamStats.climbingStats.none },
+  ].filter(item => item.value > 0);
+  
+  // Colors for the pie chart
+  const COLORS = ['#22c55e', '#3b82f6', '#f97316'];
+  
+  // Calculate win percentage if alliance data is available
+  const calculateWinPercentage = () => {
+    if (matches.length === 0) return { percent: 0, count: 0 };
     
-    matches.forEach(match => {
-      if (!distribution[match.matchType]) {
-        distribution[match.matchType] = 0;
-      }
-      distribution[match.matchType]++;
-    });
-    
-    return Object.entries(distribution).map(([name, value]) => ({
-      name,
-      value,
-      color: name === 'Qualification' ? '#8884d8' : 
-             name === 'Practice' ? '#82ca9d' : 
-             name === 'Playoff' ? '#ffc658' : '#d0d0d0'
-    }));
+    // This is a simple estimation based on overall score - in a real app you would track actual match results
+    const highPerformanceMatches = matches.filter(match => match.overall >= 5);
+    return {
+      percent: Math.round((highPerformanceMatches.length / matches.length) * 100),
+      count: highPerformanceMatches.length
+    };
   };
-
-  if (matches.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Statistical Insights</CardTitle>
-          <CardDescription>
-            Performance analysis for Team {teamStats.teamNumber}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center items-center h-64">
-          <p className="text-muted-foreground">No match data available</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  
+  const winStats = calculateWinPercentage();
+  
+  // Calculate trend (improving, declining, or stable)
+  const calculateTrend = () => {
+    if (matches.length < 3) return { status: 'neutral', label: 'Not enough data' };
+    
+    // Sort by timestamp (newest first)
+    const sortedMatches = [...matches].sort((a, b) => b.timestamp - a.timestamp);
+    
+    // Compare recent matches with earlier matches
+    const recentMatches = sortedMatches.slice(0, Math.ceil(sortedMatches.length / 2));
+    const olderMatches = sortedMatches.slice(Math.ceil(sortedMatches.length / 2));
+    
+    if (recentMatches.length === 0 || olderMatches.length === 0) {
+      return { status: 'neutral', label: 'Not enough data' };
+    }
+    
+    const recentAvg = recentMatches.reduce((sum, match) => sum + match.overall, 0) / recentMatches.length;
+    const olderAvg = olderMatches.reduce((sum, match) => sum + match.overall, 0) / olderMatches.length;
+    
+    const diff = recentAvg - olderAvg;
+    if (diff > 0.5) return { status: 'improving', label: 'Improving' };
+    if (diff < -0.5) return { status: 'declining', label: 'Declining' };
+    return { status: 'stable', label: 'Stable' };
+  };
+  
+  const trend = calculateTrend();
+  
+  // Calculate match consistency (standard deviation of overall scores)
+  const calculateConsistency = () => {
+    if (matches.length < 2) return { level: 'unknown', value: 0, label: 'Not enough data' };
+    
+    const overallScores = matches.map(match => match.overall);
+    const mean = overallScores.reduce((sum, score) => sum + score, 0) / overallScores.length;
+    
+    const squaredDiffs = overallScores.map(score => Math.pow(score - mean, 2));
+    const variance = squaredDiffs.reduce((sum, diff) => sum + diff, 0) / squaredDiffs.length;
+    const stdDev = Math.sqrt(variance);
+    
+    // Calculate consistency percentage (inverse of standard deviation, normalized)
+    // Lower standard deviation means higher consistency
+    const consistencyValue = Math.max(0, Math.min(100, 100 - (stdDev * 100 / 7)));
+    
+    let level, label;
+    if (consistencyValue >= 80) {
+      level = 'high';
+      label = 'High';
+    } else if (consistencyValue >= 60) {
+      level = 'medium';
+      label = 'Medium';
+    } else {
+      level = 'low';
+      label = 'Low';
+    }
+    
+    return { level, value: consistencyValue, label };
+  };
+  
+  const consistency = calculateConsistency();
+  
+  // Find best and worst performances
+  const findBestAndWorstPerformances = () => {
+    if (matches.length === 0) return { best: null, worst: null };
+    
+    const sortedByOverall = [...matches].sort((a, b) => b.overall - a.overall);
+    return {
+      best: sortedByOverall[0],
+      worst: sortedByOverall[sortedByOverall.length - 1]
+    };
+  };
+  
+  const performances = findBestAndWorstPerformances();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Statistical Insights</CardTitle>
-        <CardDescription>
-          Performance analysis for Team {teamStats.teamNumber}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Rating Averages Chart */}
-          <div className="h-72">
-            <h3 className="text-sm font-medium mb-2">Performance Ratings</h3>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={ratingData}
-                layout="vertical"
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                <XAxis type="number" domain={[0, 7]} />
-                <YAxis dataKey="name" type="category" width={100} />
-                <Tooltip formatter={(value) => [`${value}/7`, 'Rating']} />
-                <Legend />
-                <Bar dataKey="value" fill="#8884d8" name="Rating Average" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Climbing Distribution */}
-          <div className="h-72 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Climbing Pie Chart */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Overall Performance Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Performance Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
             <div>
-              <h3 className="text-sm font-medium mb-2">Climbing Distribution</h3>
-              <ResponsiveContainer width="100%" height="90%">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm font-medium">Overall Performance</span>
+                <span className="text-sm font-medium">{teamStats.averages.overall.toFixed(1)}/7</span>
+              </div>
+              <Progress value={(teamStats.averages.overall / 7) * 100} className="h-2" />
+            </div>
+            
+            <Separator />
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Matches Scouted</p>
+                <p className="text-2xl font-bold">{teamStats.matchCount}</p>
+              </div>
+              
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Performance Trend</p>
+                <p className={`text-lg font-semibold ${
+                  trend.status === 'improving' ? 'text-green-500' : 
+                  trend.status === 'declining' ? 'text-red-500' : 
+                  'text-orange-500'
+                }`}>
+                  {trend.label}
+                </p>
+              </div>
+              
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Consistency</p>
+                <p className={`text-lg font-semibold ${
+                  consistency.level === 'high' ? 'text-green-500' : 
+                  consistency.level === 'medium' ? 'text-orange-500' : 
+                  'text-red-500'
+                }`}>
+                  {consistency.label}
+                </p>
+              </div>
+              
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Strong Matches</p>
+                <p className="text-lg font-semibold">
+                  {winStats.count} <span className="text-sm text-muted-foreground">({winStats.percent}%)</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Strengths and Weaknesses */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Strengths and Weaknesses</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {/* Get sorted performance metrics to identify strengths and weaknesses */}
+            {Object.entries(teamStats.averages)
+              .filter(([key]) => key !== 'overall')
+              .sort((a, b) => b[1] - a[1])
+              .map(([key, value], index, array) => {
+                // Determine if this is a strength or weakness
+                const isStrength = index < 2; // Top 2 metrics
+                const isWeakness = index >= array.length - 2; // Bottom 2 metrics
+                
+                // Format the metric name
+                const metricName = key
+                  .replace(/([A-Z])/g, ' $1') // Add space before capitals
+                  .replace(/^./, str => str.toUpperCase()); // Capitalize first letter
+                
+                return (
+                  <div key={key}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm font-medium flex items-center">
+                        {metricName}
+                        {isStrength && <span className="ml-1 text-xs text-green-500">(Strength)</span>}
+                        {isWeakness && <span className="ml-1 text-xs text-red-500">(Weakness)</span>}
+                      </span>
+                      <span className="text-sm font-medium">{value.toFixed(1)}/7</span>
+                    </div>
+                    <Progress 
+                      value={(value / 7) * 100} 
+                      className={`h-2 ${
+                        isStrength ? 'bg-green-100' : 
+                        isWeakness ? 'bg-red-100' : ''
+                      }`} 
+                    />
+                  </div>
+                );
+              })
+            }
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Climbing Performance */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Climbing Performance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[200px]">
+            {climbingData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={climbingData}
                     cx="50%"
                     cy="50%"
-                    labelLine={false}
+                    innerRadius={60}
                     outerRadius={80}
-                    fill="#8884d8"
+                    paddingAngle={5}
                     dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                   >
                     {climbingData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value, name) => [value, name]} />
-                  <Legend />
+                  <Tooltip formatter={(value) => [`${value} matches`, 'Count']} />
+                  <Legend verticalAlign="bottom" height={36} />
                 </PieChart>
               </ResponsiveContainer>
-            </div>
-
-            {/* Match Type Distribution */}
-            <div>
-              <h3 className="text-sm font-medium mb-2">Match Types</h3>
-              <ResponsiveContainer width="100%" height="90%">
-                <PieChart>
-                  <Pie
-                    data={matchTypeData()}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {matchTypeData().map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value, name) => [value, name]} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-muted-foreground">No climbing data available</p>
+              </div>
+            )}
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+      
+      {/* Match Highlights */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Match Highlights</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {performances.best ? (
+              <div>
+                <p className="text-sm font-medium mb-1">Best Performance</p>
+                <div className="bg-green-50 dark:bg-green-950 p-3 rounded-md">
+                  <div className="flex justify-between mb-1">
+                    <p className="font-medium">
+                      {performances.best.matchType} {performances.best.matchNumber}
+                    </p>
+                    <p className="font-bold text-green-600">
+                      {performances.best.overall}/7
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {performances.best.climbing} climb • {performances.best.alliance} alliance
+                  </p>
+                  {performances.best.comments && (
+                    <p className="mt-2 text-sm">{performances.best.comments}</p>
+                  )}
+                </div>
+              </div>
+            ) : null}
+            
+            {performances.worst ? (
+              <div>
+                <p className="text-sm font-medium mb-1">Needs Improvement</p>
+                <div className="bg-red-50 dark:bg-red-950 p-3 rounded-md">
+                  <div className="flex justify-between mb-1">
+                    <p className="font-medium">
+                      {performances.worst.matchType} {performances.worst.matchNumber}
+                    </p>
+                    <p className="font-bold text-red-600">
+                      {performances.worst.overall}/7
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {performances.worst.climbing} climb • {performances.worst.alliance} alliance
+                  </p>
+                  {performances.worst.comments && (
+                    <p className="mt-2 text-sm">{performances.worst.comments}</p>
+                  )}
+                </div>
+              </div>
+            ) : null}
+            
+            {(!performances.best && !performances.worst) && (
+              <p className="text-center text-muted-foreground py-4">
+                No match data available to show highlights
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
-
-export default StatisticalInsights;
