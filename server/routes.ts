@@ -201,9 +201,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true,
         syncedMatches: 0,
         errors: [] as string[],
-        // Include server data in the response to ensure client has all latest data
         serverMatches: [] as any[]
       };
+
+      // Get all existing matches for comparison
+      const existingMatches = await db.select().from(matchEntries);
+      const existingMatchKeys = new Set(
+        existingMatches.map(m => `${m.team}-${m.matchNumber}`)
+      );
 
       console.log(`Processing ${matches.length} matches from client`);
 
@@ -219,18 +224,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
-          // Check if match already exists by team and match number only
-          const [existingMatch] = await db.select()
-            .from(matchEntries)
-            .where(
-              and(
-                eq(matchEntries.team, matchData.team),
-                eq(matchEntries.matchNumber, matchData.matchNumber)
-              )
-            );
+          const matchKey = `${matchData.team}-${matchData.matchNumber}`;
+          const exists = existingMatchKeys.has(matchKey);
 
           console.log(`Processing match for team ${matchData.team}, match ${matchData.matchNumber}:`, 
-            existingMatch ? 'updating existing' : 'creating new');
+            exists ? 'updating existing' : 'creating new');
 
           if (existingMatch) {
             // Update existing match
