@@ -253,9 +253,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .values({ ...parsed.data, syncStatus: "synced" });
             syncResults.syncedMatches++;
           }
-            await db.update(matchEntries)
-              .set({ ...parsed.data, syncStatus: "synced" })
-              .where(eq(matchEntries.id, existingMatch.id));
           } else {
             // Insert new match
             await db.insert(matchEntries)
