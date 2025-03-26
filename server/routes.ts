@@ -230,8 +230,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Processing match for team ${matchData.team}, match ${matchData.matchNumber}:`, 
             exists ? 'updating existing' : 'creating new');
 
-          if (existingMatch) {
-            // Update existing match
+          if (exists) {
+            // Update existing match by finding it first
+            const [existingMatch] = await db.select()
+              .from(matchEntries)
+              .where(
+                and(
+                  eq(matchEntries.team, matchData.team),
+                  eq(matchEntries.matchNumber, matchData.matchNumber)
+                )
+              );
+
+            if (existingMatch) {
+              await db.update(matchEntries)
+                .set({ ...parsed.data, syncStatus: "synced" })
+                .where(eq(matchEntries.id, existingMatch.id));
+              syncResults.syncedMatches++;
+            }
+          } else {
+            // Insert new match
+            await db.insert(matchEntries)
+              .values({ ...parsed.data, syncStatus: "synced" });
+            syncResults.syncedMatches++;
+          }
             await db.update(matchEntries)
               .set({ ...parsed.data, syncStatus: "synced" })
               .where(eq(matchEntries.id, existingMatch.id));
