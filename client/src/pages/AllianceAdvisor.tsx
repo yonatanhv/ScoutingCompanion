@@ -52,10 +52,16 @@ import {
   getAllAlliancePresets,
   deleteAlliancePreset
 } from "@/lib/db";
+import { 
+  createAlliancePreset, 
+  deleteServerAlliancePreset, 
+  fetchAllAlliancePresets 
+} from "@/lib/allianceService";
 import { Alliance, TeamStatistics } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { Star, StarOff, PlusCircle, Trash2, Save, RotateCw, CheckCircle, XCircle, Filter } from "lucide-react";
+import { Star, StarOff, PlusCircle, Trash2, Save, RotateCw, CheckCircle, XCircle, Filter, Cloud, Database } from "lucide-react";
 import { formSubmitVibration } from "@/lib/haptics";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 
 const AllianceAdvisor = () => {
   const [teams, setTeams] = useState<TeamStatistics[]>([]);
@@ -247,6 +253,9 @@ const AllianceAdvisor = () => {
     setSelectedTeams(allianceData.teams);
   };
   
+  // Get online status
+  const { isOnline } = useOnlineStatus();
+  
   const handleSavePreset = async (isFavorite: boolean = false) => {
     try {
       if (!presetName.trim()) {
@@ -270,16 +279,34 @@ const AllianceAdvisor = () => {
       setIsSaving(true);
       formSubmitVibration();
       
-      // Save alliance preset
-      await saveAlliancePreset(presetName, alliance.teams, isFavorite);
+      // Save alliance preset locally
+      const localPresetId = await saveAlliancePreset(presetName, alliance.teams, isFavorite);
       
-      // Refresh presets
+      // If online, also save to server
+      if (isOnline) {
+        try {
+          // Create alliance preset on server
+          await createAlliancePreset(presetName, alliance.teams, isFavorite);
+          console.log("Alliance preset saved to server");
+        } catch (error) {
+          console.error("Failed to save alliance preset to server:", error);
+          toast({
+            title: "Saved Locally Only",
+            description: "Alliance saved locally, but could not sync with server",
+            variant: "destructive"
+          });
+        }
+      }
+      
+      // Refresh presets from local storage
       const presets = await getAllAlliancePresets();
       setAlliancePresets(presets);
       
       toast({
         title: "Success",
-        description: "Alliance saved successfully",
+        description: isOnline 
+          ? "Alliance saved successfully and synced with server" 
+          : "Alliance saved locally (offline mode)",
       });
       
       // Reset preset name

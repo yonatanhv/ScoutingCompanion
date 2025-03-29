@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FRC Scouting App WebSocket Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #status {
+            font-weight: bold;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .connected {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .disconnected {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        #messageLog {
+            height: 300px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            background-color: #f5f5f5;
+        }
+        .message-container {
+            margin-bottom: 10px;
+        }
+        .message-time {
+            font-size: 0.8em;
+            color: #666;
+        }
+        .message-content {
+            padding: 8px;
+            border-radius: 4px;
+            background-color: #e6f3ff;
+            display: inline-block;
+        }
+        .self {
+            text-align: right;
+        }
+        .self .message-content {
+            background-color: #dcf8c6;
+        }
+        textarea {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #3b78e7;
+        }
+        .control-panel {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .control-panel button {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>FRC Scouting App WebSocket Test</h1>
+    
+    <div id="status" class="disconnected">Disconnected</div>
+    
+    <div class="control-panel">
+        <button id="connectBtn">Connect</button>
+        <button id="disconnectBtn" disabled>Disconnect</button>
+        <button id="pingBtn" disabled>Ping Server</button>
+    </div>
+    
+    <div id="messageLog"></div>
+    
+    <div>
+        <textarea id="messageInput" rows="3" placeholder="Type a message to send..."></textarea>
+        <button id="sendBtn" disabled>Send Message</button>
+    </div>
+    
+    <script>
+        let socket = null;
+        const statusEl = document.getElementById('status');
+        const messageLogEl = document.getElementById('messageLog');
+        const messageInputEl = document.getElementById('messageInput');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const pingBtn = document.getElementById('pingBtn');
+        
+        function updateStatus(isConnected) {
+            if (isConnected) {
+                statusEl.textContent = 'Connected';
+                statusEl.className = 'connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                sendBtn.disabled = false;
+                pingBtn.disabled = false;
+            } else {
+                statusEl.textContent = 'Disconnected';
+                statusEl.className = 'disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                sendBtn.disabled = true;
+                pingBtn.disabled = true;
+            }
+        }
+        
+        function logMessage(message, isSelf = false) {
+            const time = new Date().toLocaleTimeString();
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message-container' + (isSelf ? ' self' : '');
+            
+            messageDiv.innerHTML = `
+                <div class="message-time">${time}</div>
+                <div class="message-content">${message}</div>
+            `;
+            
+            messageLogEl.appendChild(messageDiv);
+            messageLogEl.scrollTop = messageLogEl.scrollHeight;
+        }
+        
+        function connect() {
+            try {
+                // Use the correct WebSocket URL
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws`;
+                
+                logMessage(`Attempting to connect to ${wsUrl}...`);
+                
+                socket = new WebSocket(wsUrl);
+                
+                socket.onopen = function() {
+                    logMessage('Connection established');
+                    updateStatus(true);
+                };
+                
+                socket.onmessage = function(event) {
+                    let data;
+                    try {
+                        data = JSON.parse(event.data);
+                        logMessage(`Received: ${JSON.stringify(data, null, 2)}`);
+                    } catch (e) {
+                        logMessage(`Received: ${event.data}`);
+                    }
+                };
+                
+                socket.onclose = function(event) {
+                    if (event.wasClean) {
+                        logMessage(`Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+                    } else {
+                        logMessage('Connection died');
+                    }
+                    updateStatus(false);
+                };
+                
+                socket.onerror = function(error) {
+                    logMessage(`Error: ${error.message}`);
+                    updateStatus(false);
+                };
+            } catch (err) {
+                logMessage(`Connection error: ${err.message}`);
+                updateStatus(false);
+            }
+        }
+        
+        function disconnect() {
+            if (socket) {
+                socket.close();
+                socket = null;
+            }
+        }
+        
+        function sendMessage() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                logMessage('Cannot send message, connection not open');
+                return;
+            }
+            
+            const message = messageInputEl.value.trim();
+            if (!message) return;
+            
+            try {
+                socket.send(JSON.stringify({ type: 'message', content: message }));
+                logMessage(message, true);
+                messageInputEl.value = '';
+            } catch (err) {
+                logMessage(`Failed to send message: ${err.message}`);
+            }
+        }
+        
+        function pingServer() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                logMessage('Cannot ping server, connection not open');
+                return;
+            }
+            
+            try {
+                socket.send(JSON.stringify({ type: 'ping', timestamp: new Date().toISOString() }));
+                logMessage('Ping sent to server', true);
+            } catch (err) {
+                logMessage(`Failed to ping server: ${err.message}`);
+            }
+        }
+        
+        connectBtn.addEventListener('click', connect);
+        disconnectBtn.addEventListener('click', disconnect);
+        sendBtn.addEventListener('click', sendMessage);
+        pingBtn.addEventListener('click', pingServer);
+        
+        messageInputEl.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // Auto-connect when the page loads
+        window.addEventListener('load', function() {
+            logMessage('Page loaded, click "Connect" to establish WebSocket connection');
+        });
+    </script>
+</body>
+</html>

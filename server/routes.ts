@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { eq, and, desc } from "drizzle-orm";
-import { matchEntries, insertMatchEntrySchema, teamStatistics, insertTeamStatisticsSchema, cloudBackups } from "@shared/schema";
+import { matchEntries, insertMatchEntrySchema, teamStatistics, insertTeamStatisticsSchema, cloudBackups, alliancePresets, insertAlliancePresetSchema } from "@shared/schema";
 import { WebSocketServer, WebSocket } from 'ws';
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -156,6 +156,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error getting teams:", error);
       res.status(500).json({ error: "Failed to get teams" });
+    }
+  });
+  
+  // Alliance endpoints
+  app.get("/api/alliances", async (req, res) => {
+    try {
+      const alliances = await db.select().from(alliancePresets);
+      res.json(alliances);
+    } catch (error) {
+      console.error("Error getting alliance presets:", error);
+      res.status(500).json({ error: "Failed to get alliance presets" });
+    }
+  });
+  
+  app.get("/api/alliances/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid alliance ID" });
+      }
+      
+      const [alliance] = await db.select()
+        .from(alliancePresets)
+        .where(eq(alliancePresets.id, id));
+      
+      if (!alliance) {
+        return res.status(404).json({ error: "Alliance preset not found" });
+      }
+      
+      res.json(alliance);
+    } catch (error) {
+      console.error("Error getting alliance preset:", error);
+      res.status(500).json({ error: "Failed to get alliance preset" });
+    }
+  });
+  
+  app.post("/api/alliances", async (req, res) => {
+    try {
+      const parsed = insertAlliancePresetSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error });
+      }
+      
+      const [alliance] = await db.insert(alliancePresets)
+        .values(parsed.data)
+        .returning();
+      
+      res.status(201).json(alliance);
+    } catch (error) {
+      console.error("Error creating alliance preset:", error);
+      res.status(500).json({ error: "Failed to create alliance preset" });
+    }
+  });
+  
+  app.delete("/api/alliances/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid alliance ID" });
+      }
+      
+      const [alliance] = await db.select()
+        .from(alliancePresets)
+        .where(eq(alliancePresets.id, id));
+      
+      if (!alliance) {
+        return res.status(404).json({ error: "Alliance preset not found" });
+      }
+      
+      await db.delete(alliancePresets).where(eq(alliancePresets.id, id));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting alliance preset:", error);
+      res.status(500).json({ error: "Failed to delete alliance preset" });
     }
   });
   

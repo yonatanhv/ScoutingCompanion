@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>API Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #status { font-weight: bold; }
+    #log { 
+      height: 300px; 
+      border: 1px solid #ccc; 
+      padding: 10px; 
+      overflow-y: auto; 
+      margin-top: 10px;
+      background-color: #f5f5f5;
+    }
+    button {
+      padding: 8px 12px;
+      margin-right: 10px;
+      background-color: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #3b78e7;
+    }
+  </style>
+</head>
+<body>
+  <h1>API Test for FRC Scouting App</h1>
+  
+  <div>
+    <button id="testTeams">Get Teams</button>
+    <button id="testAlliances">Get Alliances</button>
+    <button id="testHealth">Check Health</button>
+  </div>
+  
+  <h2>Results</h2>
+  <div id="log"></div>
+  
+  <script>
+    const logEl = document.getElementById('log');
+    
+    function log(message) {
+      const time = new Date().toLocaleTimeString();
+      logEl.innerHTML += `<div><strong>${time}</strong>: ${message}</div>`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    
+    async function testEndpoint(endpoint) {
+      log(`Testing endpoint: ${endpoint}...`);
+      
+      try {
+        const response = await fetch(endpoint);
+        const status = response.status;
+        
+        log(`Status code: ${status}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          log(`Success! Data: ${JSON.stringify(data, null, 2).slice(0, 1000)}${JSON.stringify(data, null, 2).length > 1000 ? '...' : ''}`);
+        } else {
+          const text = await response.text();
+          log(`Error: ${text}`);
+        }
+      } catch (error) {
+        log(`Fetch error: ${error.message}`);
+      }
+    }
+    
+    document.getElementById('testTeams').addEventListener('click', () => testEndpoint('http://localhost:5000/api/teams'));
+    document.getElementById('testAlliances').addEventListener('click', () => testEndpoint('http://localhost:5000/api/alliances'));
+    document.getElementById('testHealth').addEventListener('click', () => testEndpoint('http://localhost:5000/api/health'));
+  </script>
+</body>
+</html>
