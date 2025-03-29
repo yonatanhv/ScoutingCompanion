@@ -59,7 +59,24 @@ import {
 } from "@/lib/allianceService";
 import { Alliance, TeamStatistics } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { Star, StarOff, PlusCircle, Trash2, Save, RotateCw, CheckCircle, XCircle, Filter, Cloud, Database, FileText, Download, FileJson, Brain } from "lucide-react";
+import { 
+  Star, 
+  StarOff, 
+  PlusCircle, 
+  Trash2, 
+  Save, 
+  RotateCw, 
+  CheckCircle, 
+  XCircle, 
+  Filter, 
+  Cloud, 
+  Database, 
+  FileText, 
+  Download, 
+  FileJson, 
+  Brain, 
+  Loader2 
+} from "lucide-react";
 import { formSubmitVibration } from "@/lib/haptics";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { PDFDownloadLink } from "@react-pdf/renderer";
@@ -74,7 +91,7 @@ const AllianceBuilder = () => {
   const [presetName, setPresetName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>("builder");
+  const [activeTab, setActiveTab] = useState("builder");
   const [isPdfReady, setIsPdfReady] = useState(false);
   
   // For Advisor functionality
@@ -263,6 +280,164 @@ const AllianceBuilder = () => {
       });
     }
   };
+  
+  // Alliance Advisor Functions
+  const handleIncludeTeam = (teamNumber: string) => {
+    formSubmitVibration();
+    
+    // Remove from excluded if it's there
+    if (excludedTeams.includes(teamNumber)) {
+      setExcludedTeams(excludedTeams.filter(team => team !== teamNumber));
+    }
+    
+    // Add to included if not already there
+    if (!includedTeams.includes(teamNumber)) {
+      // Make sure we don't exceed 3 teams
+      if (includedTeams.length >= 3) {
+        toast({
+          title: "Maximum Teams Reached",
+          description: "You can only include up to 3 teams. Remove a team first.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      setIncludedTeams([...includedTeams, teamNumber]);
+    }
+  };
+
+  const handleExcludeTeam = (teamNumber: string) => {
+    formSubmitVibration();
+    
+    // Remove from included if it's there
+    if (includedTeams.includes(teamNumber)) {
+      setIncludedTeams(includedTeams.filter(team => team !== teamNumber));
+    }
+    
+    // Add to excluded if not already there
+    if (!excludedTeams.includes(teamNumber)) {
+      setExcludedTeams([...excludedTeams, teamNumber]);
+    }
+  };
+
+  const handleRemoveIncluded = (teamNumber: string) => {
+    formSubmitVibration();
+    setIncludedTeams(includedTeams.filter(team => team !== teamNumber));
+  };
+
+  const handleRemoveExcluded = (teamNumber: string) => {
+    formSubmitVibration();
+    setExcludedTeams(excludedTeams.filter(team => team !== teamNumber));
+  };
+
+  const handleSelectAlliance = (allianceData: Alliance) => {
+    formSubmitVibration();
+    setAlliance(allianceData);
+    setSelectedTeams(allianceData.teams);
+  };
+  
+  const handleClearFilters = () => {
+    formSubmitVibration();
+    setIncludedTeams([]);
+    setExcludedTeams([]);
+    setAlliances([]);
+    setAlliance(null);
+    setSelectedTeams([]);
+  };
+  
+  // Generate possible alliance combinations
+  const generateAlliances = async () => {
+    setIsCalculating(true);
+    
+    try {
+      const availableTeams = teams
+        .filter(team => !excludedTeams.includes(team.teamNumber))
+        .map(team => team.teamNumber);
+      
+      // Always include the included teams
+      const fixedTeams = [...includedTeams];
+      
+      // How many more teams we need to select
+      const remainingTeamsToSelect = 3 - fixedTeams.length;
+      
+      if (remainingTeamsToSelect <= 0) {
+        // We already have a full alliance from the included teams
+        const calculatedAlliance = await buildAlliance(fixedTeams.slice(0, 3));
+        if (calculatedAlliance) {
+          setAlliances([calculatedAlliance]);
+          setAlliance(calculatedAlliance);
+        }
+        setIsCalculating(false);
+        return;
+      }
+      
+      // Get the available teams (not included and not excluded)
+      const remainingTeams = availableTeams.filter(team => !includedTeams.includes(team));
+      
+      // Generate all possible combinations of the remaining teams
+      const allCombinations: string[][] = [];
+      
+      // Helper function to generate combinations - using arrow function to avoid issues in strict mode
+      const generateCombinations = (arr: string[], size: number, start = 0, current: string[] = []): void => {
+        if (current.length === size) {
+          allCombinations.push([...current]);
+          return;
+        }
+        
+        for (let i = start; i < arr.length; i++) {
+          current.push(arr[i]);
+          generateCombinations(arr, size, i + 1, current);
+          current.pop();
+        }
+      };
+      
+      // Generate all possible combinations of remaining teams
+      generateCombinations(remainingTeams, remainingTeamsToSelect);
+      
+      // For each combination, add the fixed teams to create complete alliances
+      const allianceCombinations = allCombinations.map(combo => [...fixedTeams, ...combo]);
+      
+      // Limit to top 20 combinations to avoid overloading
+      const alliancesToAnalyze = allianceCombinations.slice(0, 20);
+      
+      // Calculate alliance statistics for each combination
+      const calculatedAlliances: Alliance[] = [];
+      
+      for (const allianceTeams of alliancesToAnalyze) {
+        const allianceData = await buildAlliance(allianceTeams);
+        if (allianceData) {
+          calculatedAlliances.push(allianceData);
+        }
+      }
+      
+      // Sort alliances by the selected criteria
+      const sortedAlliances = calculatedAlliances.sort((a, b) => 
+        b.combinedAverages[sortCriteria] - a.combinedAverages[sortCriteria]);
+      
+      setAlliances(sortedAlliances);
+      
+      // Set the first alliance as the selected one
+      if (sortedAlliances.length > 0) {
+        setAlliance(sortedAlliances[0]);
+        setSelectedTeams(sortedAlliances[0].teams);
+      }
+      
+      toast({
+        title: "Alliance Analysis Complete",
+        description: `Generated ${sortedAlliances.length} possible alliance combinations.`
+      });
+      
+    } catch (error) {
+      console.error("Error generating alliances:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate alliance combinations",
+        variant: "destructive"
+      });
+    }
+    
+    setIsCalculating(false);
+  };
 
   if (isLoading) {
     return (
@@ -292,524 +467,450 @@ const AllianceBuilder = () => {
           </p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          {/* Team Selection */}
-          <Card className="md:col-span-5">
-            <CardHeader>
-              <CardTitle>Select Teams</CardTitle>
-              <CardDescription>
-                Add up to 3 teams to your alliance
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {Array(3).fill(0).map((_, index) => (
-                  <div key={index} className="space-y-2">
-                    <Label htmlFor={`team-${index}`}>Team {index + 1}</Label>
+        <Tabs defaultValue="builder" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="builder">Alliance Builder</TabsTrigger>
+            <TabsTrigger value="advisor">Alliance Advisor</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="builder" className="mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+              {/* Team Selection */}
+              <Card className="md:col-span-5">
+                <CardHeader>
+                  <CardTitle>Select Teams</CardTitle>
+                  <CardDescription>
+                    Add up to 3 teams to your alliance
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {Array(3).fill(0).map((_, index) => (
+                      <div key={index} className="space-y-2">
+                        <Label htmlFor={`team-${index}`}>Team {index + 1}</Label>
+                        <div className="flex space-x-2">
+                          <Select 
+                            value={selectedTeams[index] || ""}
+                            onValueChange={(value) => handleTeamSelect(index, value)}
+                          >
+                            <SelectTrigger id={`team-${index}`}>
+                              <SelectValue placeholder="Select a team" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {teams.map((team) => (
+                                <SelectItem key={team.teamNumber} value={team.teamNumber}>
+                                  {team.teamNumber} - {team.teamName}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          
+                          {selectedTeams[index] && (
+                            <Button 
+                              variant="outline" 
+                              size="icon"
+                              onClick={() => handleRemoveTeam(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="mt-6 space-y-2">
+                    <Label htmlFor="preset-name">Alliance Name</Label>
                     <div className="flex space-x-2">
-                      <Select 
-                        value={selectedTeams[index] || ""}
-                        onValueChange={(value) => handleTeamSelect(index, value)}
-                      >
-                        <SelectTrigger id={`team-${index}`}>
-                          <SelectValue placeholder="Select a team" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {teams.map((team) => (
-                            <SelectItem key={team.teamNumber} value={team.teamNumber}>
-                              {team.teamNumber} - {team.teamName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      
-                      {selectedTeams[index] && (
-                        <Button 
-                          variant="outline" 
-                          size="icon"
-                          onClick={() => handleRemoveTeam(index)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button 
-                onClick={refreshAlliance}
-                variant="outline"
-                disabled={selectedTeams.length === 0}
-              >
-                <RotateCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
-            </CardFooter>
-          </Card>
-
-          {/* Alliance Analysis */}
-          <Card className="md:col-span-7">
-            <CardHeader>
-              <CardTitle>Alliance Analysis</CardTitle>
-              <CardDescription>
-                Performance prediction and synergy analysis
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {alliance ? (
-                <div className="space-y-4">
-                  {/* Teams in alliance */}
-                  <div>
-                    <h3 className="text-sm font-medium mb-2">Teams</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {alliance.teams.map((team, idx) => {
-                        const teamData = teams.find(t => t.teamNumber === team);
-                        return (
-                          <Badge key={idx} variant="outline" className="px-2 py-1">
-                            {team} {teamData ? `- ${teamData.teamName}` : ''}
-                          </Badge>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  {/* Performance metrics */}
-                  <div>
-                    <h3 className="text-sm font-medium mb-2">Average Ratings</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Defense</p>
-                        <div className="flex items-center">
-                          <div className="w-full bg-muted rounded-full h-2.5 mr-2">
-                            <div 
-                              className="bg-primary h-2.5 rounded-full" 
-                              style={{ width: `${(alliance.combinedAverages.defense / 7) * 100}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm font-medium">{alliance.combinedAverages.defense.toFixed(1)}</span>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <p className="text-sm text-muted-foreground">Avoiding Defense</p>
-                        <div className="flex items-center">
-                          <div className="w-full bg-muted rounded-full h-2.5 mr-2">
-                            <div 
-                              className="bg-primary h-2.5 rounded-full" 
-                              style={{ width: `${(alliance.combinedAverages.avoidingDefense / 7) * 100}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm font-medium">{alliance.combinedAverages.avoidingDefense.toFixed(1)}</span>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <p className="text-sm text-muted-foreground">Scoring Algae</p>
-                        <div className="flex items-center">
-                          <div className="w-full bg-muted rounded-full h-2.5 mr-2">
-                            <div 
-                              className="bg-primary h-2.5 rounded-full" 
-                              style={{ width: `${(alliance.combinedAverages.scoringAlgae / 7) * 100}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm font-medium">{alliance.combinedAverages.scoringAlgae.toFixed(1)}</span>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <p className="text-sm text-muted-foreground">Scoring Corals</p>
-                        <div className="flex items-center">
-                          <div className="w-full bg-muted rounded-full h-2.5 mr-2">
-                            <div 
-                              className="bg-primary h-2.5 rounded-full" 
-                              style={{ width: `${(alliance.combinedAverages.scoringCorals / 7) * 100}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm font-medium">{alliance.combinedAverages.scoringCorals.toFixed(1)}</span>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <p className="text-sm text-muted-foreground">Autonomous</p>
-                        <div className="flex items-center">
-                          <div className="w-full bg-muted rounded-full h-2.5 mr-2">
-                            <div 
-                              className="bg-primary h-2.5 rounded-full" 
-                              style={{ width: `${(alliance.combinedAverages.autonomous / 7) * 100}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm font-medium">{alliance.combinedAverages.autonomous.toFixed(1)}</span>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <p className="text-sm text-muted-foreground">Driving Skill</p>
-                        <div className="flex items-center">
-                          <div className="w-full bg-muted rounded-full h-2.5 mr-2">
-                            <div 
-                              className="bg-primary h-2.5 rounded-full" 
-                              style={{ width: `${(alliance.combinedAverages.drivingSkill / 7) * 100}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm font-medium">{alliance.combinedAverages.drivingSkill.toFixed(1)}</span>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <p className="text-sm text-muted-foreground">Overall</p>
-                        <div className="flex items-center">
-                          <div className="w-full bg-muted rounded-full h-2.5 mr-2">
-                            <div 
-                              className="bg-primary h-2.5 rounded-full" 
-                              style={{ width: `${(alliance.combinedAverages.overall / 7) * 100}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm font-medium">{alliance.combinedAverages.overall.toFixed(1)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  {/* Climbing breakdown */}
-                  <div>
-                    <h3 className="text-sm font-medium mb-2">Climbing Capabilities</h3>
-                    <div className="grid grid-cols-5 gap-2">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold">{alliance.climbingBreakdown.noData || 0}</div>
-                        <div className="text-xs text-muted-foreground">No Data</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold">{alliance.climbingBreakdown.none || 0}</div>
-                        <div className="text-xs text-muted-foreground">None</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold">{alliance.climbingBreakdown.park || 0}</div>
-                        <div className="text-xs text-muted-foreground">Park</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold">{alliance.climbingBreakdown.shallow || 0}</div>
-                        <div className="text-xs text-muted-foreground">Shallow</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold">{alliance.climbingBreakdown.deep || 0}</div>
-                        <div className="text-xs text-muted-foreground">Deep</div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  {/* Strengths & Weaknesses */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <h3 className="text-sm font-medium mb-2">Strengths</h3>
-                      <ul className="list-disc list-inside text-sm space-y-1">
-                        {alliance.strengths.map((strength, idx) => (
-                          <li key={idx} className="text-green-500 dark:text-green-400">
-                            <span className="text-foreground">{strength}</span>
-                          </li>
-                        ))}
-                        {alliance.strengths.length === 0 && (
-                          <li className="text-muted-foreground">No notable strengths</li>
-                        )}
-                      </ul>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-sm font-medium mb-2">Weaknesses</h3>
-                      <ul className="list-disc list-inside text-sm space-y-1">
-                        {alliance.weaknesses.map((weakness, idx) => (
-                          <li key={idx} className="text-red-500 dark:text-red-400">
-                            <span className="text-foreground">{weakness}</span>
-                          </li>
-                        ))}
-                        {alliance.weaknesses.length === 0 && (
-                          <li className="text-muted-foreground">No notable weaknesses</li>
-                        )}
-                      </ul>
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  {/* Synergy Score */}
-                  <div className="text-center">
-                    <h3 className="text-sm font-medium mb-2">Alliance Synergy</h3>
-                    <div className="relative pt-1">
-                      <div className="flex mb-2 items-center justify-between">
-                        <div className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-primary bg-primary/10">
-                          Score: {alliance.synergy}/10
-                        </div>
-                      </div>
-                      <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-muted">
-                        <div 
-                          style={{ width: `${(alliance.synergy / 10) * 100}%` }} 
-                          className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-primary"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {alliance.synergy >= 8 ? "Excellent team synergy!" : 
-                       alliance.synergy >= 6 ? "Good team synergy" : 
-                       alliance.synergy >= 4 ? "Average team synergy" : 
-                       "Low team synergy - consider different team combinations"}
-                    </p>
-                  </div>
-                  
-                  {/* Save Alliance */}
-                  <div className="pt-4">
-                    <div className="flex items-center space-x-4">
                       <Input 
-                        placeholder="Alliance name" 
+                        id="preset-name"
                         value={presetName}
                         onChange={(e) => setPresetName(e.target.value)}
+                        placeholder="Enter a name for this alliance"
                       />
                       <Button 
-                        onClick={() => handleSavePreset(false)}
-                        disabled={isSaving || !presetName.trim()}
-                      >
-                        <Save className="h-4 w-4 mr-2" />
-                        Save
-                      </Button>
-                      <Button 
-                        variant="outline"
                         onClick={() => handleSavePreset(true)}
-                        disabled={isSaving || !presetName.trim()}
+                        disabled={!presetName.trim() || selectedTeams.length === 0 || isSaving}
+                        variant="default"
                       >
-                        <Star className="h-4 w-4 mr-2" />
-                        Favorite
+                        {isSaving ? (
+                          <>
+                            <TeamMascotSpinner variant="secondary" size="sm" className="mr-2" />
+                            Saving
+                          </>
+                        ) : (
+                          <>
+                            <Star className="h-4 w-4 mr-2" />
+                            Save
+                          </>
+                        )}
                       </Button>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-64 text-center">
-                  <p className="text-muted-foreground">
-                    Select teams to see alliance analysis
-                  </p>
-                </div>
-              )}
-            </CardContent>
-            {alliance && (
-              <CardFooter className="flex flex-wrap justify-between gap-2">
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center"
-                    onClick={() => {
-                      formSubmitVibration();
-                      setIsPdfReady(true);
-                    }}
-                    disabled={!alliance || alliance.teams.length === 0}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Export Report
+                  
+                  <Button className="w-full mt-4" onClick={refreshAlliance} disabled={selectedTeams.length === 0}>
+                    <RotateCw className="h-4 w-4 mr-2" />
+                    Refresh Alliance Stats
                   </Button>
-                  {isPdfReady && alliance && (
-                    <PDFDownloadLink 
-                      document={
-                        <AllianceReportPDF 
-                          alliance={alliance} 
-                          teamDetails={teams.filter(t => alliance.teams.includes(t.teamNumber))}
-                          presetName={presetName.trim() || "Custom Alliance"}
-                        />
-                      } 
-                      fileName={`alliance-report-${new Date().toISOString().split('T')[0]}.pdf`}
-                    >
-                      {({ loading, error }) => (
-                        <Button
-                          size="sm"
-                          className="flex items-center"
-                          disabled={loading || Boolean(error)}
-                          onClick={() => formSubmitVibration()}
-                        >
-                          {loading ? (
-                            <>
-                              <div className="mr-2 h-4 w-4">
-                                <TeamMascotSpinner size="sm" speed="fast" variant="subtle" />
+                </CardContent>
+              </Card>
+
+              {/* Alliance Stats */}
+              <Card className="md:col-span-7">
+                <CardHeader>
+                  <CardTitle>Alliance Statistics</CardTitle>
+                  <CardDescription>
+                    Detailed performance metrics for the selected teams
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {alliance ? (
+                    <div className="space-y-4">
+                      <div className="bg-muted rounded-md p-4">
+                        <h3 className="font-medium mb-2">Teams</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {alliance.teams.map((team) => {
+                            const teamData = teams.find(t => t.teamNumber === team);
+                            return (
+                              <Badge key={team} variant="outline">
+                                {team} {teamData?.teamName ? `- ${teamData.teamName}` : ''}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      
+                      {/* Combined Averages */}
+                      <div>
+                        <h3 className="font-medium mb-2">Combined Performance</h3>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3">
+                          {Object.entries(alliance.combinedAverages).map(([key, value]) => (
+                            <div key={key} className="bg-card rounded border p-2">
+                              <div className="text-xs text-muted-foreground">
+                                {key.charAt(0).toUpperCase() + key.slice(1)}
                               </div>
-                              Preparing PDF...
-                            </>
-                          ) : (
-                            <>
-                              <Download className="h-4 w-4 mr-2" />
-                              Download PDF
-                            </>
-                          )}
-                        </Button>
-                      )}
-                    </PDFDownloadLink>
-                  )}
-                </div>
-                
-                <div className="flex space-x-2">
-                  <Input
-                    placeholder="Alliance name"
-                    value={presetName}
-                    onChange={(e) => setPresetName(e.target.value)}
-                    className="w-44"
-                  />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => handleSavePreset(true)}
-                    disabled={isSaving || selectedTeams.length === 0 || !presetName.trim()}
-                    title="Save as favorite"
-                  >
-                    <Star className="h-4 w-4 text-yellow-500" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleSavePreset(false)}
-                    disabled={isSaving || selectedTeams.length === 0 || !presetName.trim()}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    Save
-                  </Button>
-                </div>
-              </CardFooter>
-            )}
-          </Card>
-        </div>
-        
-        {/* AI Recommendation Engine */}
-        <div className="mb-6">
-          <RecommendationEngine 
-            teams={teams}
-            selectedTeams={selectedTeams}
-            alliance={alliance}
-            onRecommendTeam={(teamNumber) => {
-              // Find the next available position or update an empty position
-              const emptyIndex = selectedTeams.findIndex(team => team === "");
-              if (emptyIndex >= 0) {
-                handleTeamSelect(emptyIndex, teamNumber);
-              } else if (selectedTeams.length < 3) {
-                handleTeamSelect(selectedTeams.length, teamNumber);
-              } else {
-                toast({
-                  title: "Alliance Full",
-                  description: "Remove a team first to add this recommendation",
-                  variant: "destructive"
-                });
-              }
-            }}
-          />
-        </div>
-        
-        {/* Saved Alliances */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Saved Alliances</CardTitle>
-            <CardDescription>
-              Your previously saved alliance configurations
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {alliancePresets.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Teams</TableHead>
-                    <TableHead>Synergy</TableHead>
-                    <TableHead>Overall</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {alliancePresets.map((preset) => (
-                    <TableRow key={preset.id}>
-                      <TableCell className="font-medium flex items-center">
-                        {preset.isFavorite && <Star className="h-4 w-4 mr-2 text-yellow-500" />}
-                        {preset.name}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {preset.teams.map((team, idx) => (
-                            <Badge key={idx} variant="outline" className="px-1 py-0 text-xs">
-                              {team}
-                            </Badge>
+                              <div className="text-xl font-semibold">{value.toFixed(1)}</div>
+                            </div>
                           ))}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          preset.synergy >= 7 
-                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" 
-                            : preset.synergy >= 5 
-                              ? "bg-primary-foreground/20 text-primary" 
-                              : "bg-destructive/10 text-destructive"
-                        }`}>
-                          {preset.synergy}/10
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {preset.combinedAverages.overall.toFixed(1)}/7
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleLoadPreset(preset)}
+                      </div>
+                      
+                      {/* PDF Download */}
+                      <div className="bg-muted rounded-md p-4 mt-4">
+                        <h3 className="font-medium mb-2">Alliance Report</h3>
+                        <div className="flex space-x-2">
+                          <Button
+                            onClick={() => setIsPdfReady(true)}
+                            disabled={isPdfReady}
                           >
-                            Load
+                            <FileText className="h-4 w-4 mr-2" />
+                            {isPdfReady ? "PDF Ready" : "Prepare PDF"}
                           </Button>
                           
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button 
-                                variant="destructive" 
-                                size="sm"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Delete Alliance</DialogTitle>
-                                <DialogDescription>
-                                  Are you sure you want to delete the alliance "{preset.name}"? 
-                                  This action cannot be undone.
-                                </DialogDescription>
-                              </DialogHeader>
-                              <DialogFooter className="gap-2 sm:gap-0">
-                                <DialogClose asChild>
-                                  <Button type="button" variant="secondary">
-                                    Cancel
-                                  </Button>
-                                </DialogClose>
-                                <Button 
-                                  type="button" 
-                                  variant="destructive"
-                                  onClick={() => handleDeletePreset(preset.id)}
-                                >
-                                  Delete
+                          {isPdfReady && (
+                            <PDFDownloadLink
+                              document={<AllianceReportPDF alliance={alliance} teams={teams} />}
+                              fileName={`alliance-${alliance.teams.join("-")}.pdf`}
+                            >
+                              {({ loading }) => (
+                                <Button variant="outline" disabled={loading}>
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Download PDF
                                 </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
+                              )}
+                            </PDFDownloadLink>
+                          )}
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-center py-6 text-muted-foreground">
-                <p>No saved alliances yet</p>
-                <p className="text-sm">Save an alliance above to see it here</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Generate a PDF report with detailed alliance statistics for printing and sharing
+                        </p>
+                      </div>
+                      
+                      {/* AI Recommendation */}
+                      <div className="bg-card rounded-md border p-4 mt-4">
+                        <div className="flex items-center mb-3">
+                          <Brain className="h-5 w-5 mr-2 text-primary" />
+                          <h3 className="font-medium">Alliance Intelligence</h3>
+                        </div>
+                        
+                        <div className="text-sm">
+                          <RecommendationEngine alliance={alliance} />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-muted-foreground mb-2">
+                        Select teams to see alliance statistics
+                      </div>
+                      <PlusCircle className="h-8 w-8 mx-auto text-muted-foreground/50" />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* Saved Alliances */}
+              {alliancePresets.length > 0 && (
+                <Card className="md:col-span-12">
+                  <CardHeader>
+                    <CardTitle>Saved Alliances</CardTitle>
+                    <CardDescription>
+                      Load a previously saved alliance
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {alliancePresets.map((preset) => (
+                        <Card key={preset.id} className="overflow-hidden">
+                          <CardContent className="p-3">
+                            <div className="font-medium mb-1 flex items-center">
+                              {preset.name}
+                              {preset.isFavorite && <Star className="h-3 w-3 ml-1 text-yellow-500 inline" />}
+                            </div>
+                            <div className="text-xs text-muted-foreground mb-2">
+                              {preset.teams.join(", ")}
+                            </div>
+                            <div className="flex justify-between">
+                              <Button variant="outline" size="sm" onClick={() => handleLoadPreset(preset)}>
+                                Load
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => handleDeletePreset(preset.id)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="advisor" className="mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+              {/* Configuration Panel */}
+              <Card className="md:col-span-5">
+                <CardHeader>
+                  <CardTitle>Alliance Advisor</CardTitle>
+                  <CardDescription>
+                    Get AI recommendations for optimal alliance combinations
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Team Filters */}
+                    <div>
+                      <h3 className="text-sm font-medium mb-2">Team Constraints</h3>
+                      
+                      {/* Included Teams */}
+                      <div className="space-y-2 mb-4">
+                        <Label>Required Teams</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {includedTeams.length > 0 ? (
+                            includedTeams.map(team => (
+                              <Badge key={team} variant="default" className="px-2 py-1 h-auto">
+                                {team}
+                                <button 
+                                  className="ml-1 text-foreground/80 hover:text-foreground" 
+                                  onClick={() => handleRemoveIncluded(team)}
+                                >
+                                  <XCircle className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            ))
+                          ) : (
+                            <div className="text-xs text-muted-foreground">
+                              No teams added. Choose teams to include below.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Excluded Teams */}
+                      <div className="space-y-2 mb-4">
+                        <Label>Excluded Teams</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {excludedTeams.length > 0 ? (
+                            excludedTeams.map(team => (
+                              <Badge key={team} variant="destructive" className="px-2 py-1 h-auto">
+                                {team}
+                                <button 
+                                  className="ml-1 text-foreground/80 hover:text-foreground" 
+                                  onClick={() => handleRemoveExcluded(team)}
+                                >
+                                  <XCircle className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            ))
+                          ) : (
+                            <div className="text-xs text-muted-foreground">
+                              No teams excluded. Choose teams to exclude below.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Sorting Criteria */}
+                      <div className="space-y-2 mb-4">
+                        <Label htmlFor="sort-criteria">Sort Alliances By</Label>
+                        <Select 
+                          value={sortCriteria} 
+                          onValueChange={(value) => setSortCriteria(value as keyof Alliance["combinedAverages"])}
+                        >
+                          <SelectTrigger id="sort-criteria">
+                            <SelectValue placeholder="Select criteria" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="overall">Overall Score</SelectItem>
+                            <SelectItem value="coralPlacement">Coral Placement</SelectItem>
+                            <SelectItem value="algaeCollection">Algae Collection</SelectItem>
+                            <SelectItem value="climbing">Climbing</SelectItem>
+                            <SelectItem value="defense">Defense</SelectItem>
+                            <SelectItem value="speed">Speed</SelectItem>
+                            <SelectItem value="reliability">Reliability</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      {/* Generate Button */}
+                      <div className="flex gap-2 mt-6">
+                        <Button 
+                          className="flex-1"
+                          onClick={generateAlliances}
+                          disabled={isCalculating}
+                          variant="default"
+                        >
+                          {isCalculating ? (
+                            <>
+                              <TeamMascotSpinner variant="primary" size="sm" className="mr-2" />
+                              Generating
+                            </>
+                          ) : (
+                            <>Generate Alliances</>
+                          )}
+                        </Button>
+                        
+                        <Button 
+                          onClick={handleClearFilters}
+                          variant="outline"
+                          disabled={isCalculating || (includedTeams.length === 0 && excludedTeams.length === 0)}
+                        >
+                          Clear Filters
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Available Teams */}
+              <Card className="md:col-span-7">
+                <CardHeader>
+                  <CardTitle>Available Teams</CardTitle>
+                  <CardDescription>
+                    Click to include (+) or exclude (-) teams from your alliance
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[300px] overflow-y-auto">
+                    {teams.map((team) => {
+                      const isIncluded = includedTeams.includes(team.teamNumber);
+                      const isExcluded = excludedTeams.includes(team.teamNumber);
+                      
+                      return (
+                        <div 
+                          key={team.teamNumber}
+                          className={`border rounded-md p-2 ${
+                            isIncluded ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 
+                            isExcluded ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 
+                            'border-border'
+                          }`}
+                        >
+                          <div className="flex justify-between">
+                            <div>
+                              <div className="font-medium">{team.teamNumber}</div>
+                              <div className="text-xs text-muted-foreground truncate">{team.teamName}</div>
+                            </div>
+                            <div className="flex space-x-1">
+                              <Button 
+                                size="sm" 
+                                variant={isIncluded ? "default" : "outline"}
+                                className="h-7 w-7 p-0"
+                                onClick={() => handleIncludeTeam(team.teamNumber)}
+                                disabled={isExcluded}
+                              >
+                                <PlusCircle className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant={isExcluded ? "default" : "outline"}
+                                className="h-7 w-7 p-0"
+                                onClick={() => handleExcludeTeam(team.teamNumber)}
+                                disabled={isIncluded}
+                              >
+                                <XCircle className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Show calculated alliances */}
+                  {alliances.length > 0 && (
+                    <div className="mt-8">
+                      <h3 className="text-lg font-semibold mb-2">Generated Alliances</h3>
+                      <div className="space-y-3">
+                        {alliances.map((allianceData, idx) => (
+                          <Card key={idx} className={`overflow-hidden ${
+                            allianceData.teams.toString() === (alliance?.teams.toString() || '') ? 
+                            'border-primary' : ''
+                          }`}>
+                            <CardContent className="p-4">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <div className="font-medium">Alliance #{idx + 1}</div>
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {allianceData.teams.map((team) => {
+                                      const teamData = teams.find(t => t.teamNumber === team);
+                                      return (
+                                        <Badge key={team} variant="outline" className="text-xs">
+                                          {team} {teamData?.teamName ? `- ${teamData.teamName}` : ''}
+                                        </Badge>
+                                      );
+                                    })}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mt-2">
+                                    {sortCriteria.charAt(0).toUpperCase() + sortCriteria.slice(1)} Score: {allianceData.combinedAverages[sortCriteria].toFixed(1)}/7
+                                  </div>
+                                </div>
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => handleSelectAlliance(allianceData)}
+                                  variant={allianceData.teams.toString() === (alliance?.teams.toString() || '') ? "default" : "outline"}
+                                  className="h-8"
+                                >
+                                  {allianceData.teams.toString() === (alliance?.teams.toString() || '') ? (
+                                    <>Selected</>
+                                  ) : (
+                                    <>Select</>
+                                  )}
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

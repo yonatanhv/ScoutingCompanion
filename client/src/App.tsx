@@ -32,7 +32,6 @@ function Router() {
       <Route path="/data" component={DataSync} />
       <Route path="/analytics" component={TeamAnalytics} />
       <Route path="/alliance" component={AllianceBuilder} />
-      <Route path="/alliance-advisor" component={AllianceAdvisor} />
       <Route path="/filters" component={FilterDashboard} />
       <Route path="/backup" component={CloudBackup} />
       <Route component={NotFound} />
