@@ -12,7 +12,7 @@ import { addMatchEntry } from "@/lib/db";
 import { MatchEntry } from "@/lib/types";
 import { webSocketService } from "@/lib/websocket";
 import { formSubmitVibration } from "@/lib/haptics";
-import ConsistencyWarningComponent from "@/components/ui/ConsistencyWarning";
+import ConsistencyWarningComponent from "@/components/ui/consistency-warning";
 
 export default function ScoutMatch() {
   const { toast } = useToast();

@@ -30,56 +30,51 @@ export function checkRatingConsistency(ratings: RatingFields): ConsistencyWarnin
   const ratingValues = Object.values(ratings).filter(v => v !== undefined);
   if (ratingValues.length < 2) return warnings;
   
-  // Check 1: High ratings with low overall
-  const highIndividualRatings = Object.entries(ratings)
-    .filter(([key, value]) => key !== 'overall' && value !== undefined && value >= 6)
-    .length;
-    
-  const totalIndividualRatings = Object.entries(ratings)
-    .filter(([key]) => key !== 'overall').length;
-  
-  // If most ratings are high (≥6) but overall is low (≤2)
-  if (highIndividualRatings >= totalIndividualRatings * 0.7 && 
-      ratings.overall !== undefined && ratings.overall <= 2) {
-    warnings.push({
-      message: "Most individual ratings are high but overall rating is very low",
-      severity: 'high'
-    });
-  }
-  
-  // Check 2: Low ratings with high overall
-  const lowIndividualRatings = Object.entries(ratings)
-    .filter(([key, value]) => key !== 'overall' && value !== undefined && value <= 2)
-    .length;
-  
-  // If most ratings are low (≤2) but overall is high (≥6)
-  if (lowIndividualRatings >= totalIndividualRatings * 0.7 && 
-      ratings.overall !== undefined && ratings.overall >= 6) {
-    warnings.push({
-      message: "Most individual ratings are low but overall rating is very high",
-      severity: 'high'
-    });
-  }
-  
-  // Check 3: High variance between categories without justification
-  const ratingNums = Object.entries(ratings)
+  // Get individual ratings (excluding overall)
+  const individualRatings = Object.entries(ratings)
     .filter(([key]) => key !== 'overall')
     .map(([_, value]) => value || 0);
-  
-  if (ratingNums.length >= 3) {
-    const max = Math.max(...ratingNums);
-    const min = Math.min(...ratingNums);
     
-    if (max - min >= 5) {
+  const totalIndividualRatings = individualRatings.length;
+  
+  // Calculate average of individual ratings
+  const avgRating = individualRatings.reduce((sum, value) => sum + value, 0) / 
+    (individualRatings.length || 1);
+  
+  // Check 1: Significant difference between average rating and overall rating
+  if (ratings.overall !== undefined && totalIndividualRatings >= 3) {
+    const difference = Math.abs(avgRating - ratings.overall);
+    
+    // More than 2 points difference between average and overall
+    if (difference > 2) {
+      let severity: 'low' | 'medium' | 'high' = 'medium';
+      
+      // Adjust severity based on the size of the difference
+      if (difference >= 4) {
+        severity = 'high';
+      } else if (difference <= 2.5) {
+        severity = 'low';
+      }
+      
       warnings.push({
-        message: "Rating categories have very high variance (difference of 5+)",
-        severity: 'medium'
+        message: `The overall rating (${ratings.overall}) differs from the average of individual ratings (${avgRating.toFixed(1)}) by ${difference.toFixed(1)} points`,
+        severity
       });
     }
   }
   
-  // Check 4: Climbing level inconsistent with overall rating
-  // To be implemented if climbing data available
+  // Check 2: High variance between categories without justification
+  if (individualRatings.length >= 3) {
+    const max = Math.max(...individualRatings);
+    const min = Math.min(...individualRatings);
+    
+    if (max - min >= 5) {
+      warnings.push({
+        message: "There's a large difference between your highest and lowest category ratings (5+ points)",
+        severity: 'medium'
+      });
+    }
+  }
   
   return warnings;
 }

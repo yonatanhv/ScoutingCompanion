@@ -13,6 +13,9 @@ import NotFound from "@/pages/not-found";
 import { useToast } from "@/hooks/use-toast";
 import { BackgroundParticles } from "@/components/ui/background-particles";
 import TestDataGenerator from "@/components/dev/TestDataGenerator";
+import TutorialWizard from "@/components/ui/tutorial-wizard";
+import ErrorRecoveryWizard from "@/components/ui/error-recovery-wizard";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 function Router() {
   const [location, setLocation] = useLocation();
@@ -40,6 +43,11 @@ function Router() {
 function App() {
   const [dbInitialized, setDbInitialized] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [errorRecoveryOpen, setErrorRecoveryOpen] = useState(false);
+  const [errorType, setErrorType] = useState<"sync" | "database" | "connection" | "unknown">("unknown");
+  const [completedTutorial, setCompletedTutorial] = useLocalStorage<boolean>("tutorial_completed", false);
+  const { toast } = useToast();
   
   // Initialize IndexedDB
   useEffect(() => {
@@ -57,6 +65,51 @@ function App() {
     
     setupDb();
   }, []);
+  
+  // Check if the tutorial should be shown (first time user) - but only auto-show once
+  useEffect(() => {
+    if (dbInitialized && !completedTutorial) {
+      // Short delay before showing tutorial to let the UI render first
+      const timer = setTimeout(() => {
+        setTutorialOpen(true);
+        // Mark as completed to prevent auto-showing again (user can still access via button)
+        setCompletedTutorial(true);
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [dbInitialized, completedTutorial, setCompletedTutorial]);
+  
+  // Handler for showing the error recovery wizard
+  const showErrorRecovery = (type: "sync" | "database" | "connection" | "unknown" = "unknown") => {
+    setErrorType(type);
+    setErrorRecoveryOpen(true);
+  };
+  
+  // Add keyboard shortcut to show tutorial again (Ctrl+Shift+T)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'T') {
+        setTutorialOpen(true);
+        
+        toast({
+          title: "Tutorial Opened",
+          description: "You can access this tutorial anytime with Ctrl+Shift+T",
+        });
+      } else if (e.ctrlKey && e.shiftKey && e.key === 'E') {
+        // Debug shortcut for error recovery wizard (Ctrl+Shift+E)
+        showErrorRecovery();
+        
+        toast({
+          title: "Error Recovery Wizard",
+          description: "Diagnostic tool opened for troubleshooting",
+        });
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toast]);
   
   if (dbError) {
     return (
@@ -99,6 +152,19 @@ function App() {
       
       {/* Test Data Generator (only accessible with secret key) */}
       <TestDataGenerator />
+      
+      {/* Tutorial Wizard */}
+      <TutorialWizard 
+        open={tutorialOpen} 
+        onOpenChange={setTutorialOpen} 
+      />
+      
+      {/* Error Recovery Wizard */}
+      <ErrorRecoveryWizard 
+        open={errorRecoveryOpen} 
+        onOpenChange={setErrorRecoveryOpen}
+        errorType={errorType}
+      />
     </div>
   );
 }

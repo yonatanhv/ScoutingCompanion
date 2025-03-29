@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { formSubmitVibration } from "@/lib/haptics";
+import { TutorialButton } from "@/components/ui/tutorial-wizard";
 
 // Interface for the PWA install prompt
 interface BeforeInstallPromptEvent extends Event {
@@ -148,6 +149,7 @@ export default function Header() {
             </span>
           </div>
           
+          <TutorialButton />
           <ThemeToggle />
           
           {deferredPrompt && (
