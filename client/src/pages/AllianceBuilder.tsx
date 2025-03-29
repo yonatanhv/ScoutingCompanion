@@ -268,8 +268,15 @@ const AllianceBuilder = () => {
     return (
       <div className="flex justify-center items-center h-[50vh]">
         <div className="text-center">
-          <div className="text-primary text-2xl font-bold mb-4 gradient-text">Loading Teams</div>
-          <div className="mt-4 w-10 h-10 border-t-2 border-primary rounded-full animate-spin mx-auto"></div>
+          <TeamMascotSpinner 
+            size="lg"
+            variant="primary"
+            speed="default"
+            label="Loading team data..."
+          />
+          <div className="text-primary text-2xl font-bold mt-6 gradient-text">
+            Loading Alliance Builder
+          </div>
         </div>
       </div>
     );
@@ -623,8 +630,19 @@ const AllianceBuilder = () => {
                           disabled={loading || Boolean(error)}
                           onClick={() => formSubmitVibration()}
                         >
-                          <Download className="h-4 w-4 mr-2" />
-                          {loading ? "Preparing PDF..." : "Download PDF"}
+                          {loading ? (
+                            <>
+                              <div className="mr-2 h-4 w-4">
+                                <TeamMascotSpinner size="sm" speed="fast" variant="subtle" />
+                              </div>
+                              Preparing PDF...
+                            </>
+                          ) : (
+                            <>
+                              <Download className="h-4 w-4 mr-2" />
+                              Download PDF
+                            </>
+                          )}
                         </Button>
                       )}
                     </PDFDownloadLink>

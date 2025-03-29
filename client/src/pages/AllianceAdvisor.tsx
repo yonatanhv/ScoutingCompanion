@@ -335,7 +335,7 @@ const AllianceAdvisor = () => {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-[50vh]">
-        <TeamMascotSpinner size="lg" message="Loading Teams..." />
+        <TeamMascotSpinner size="lg" label="Loading Teams..." />
       </div>
     );
   }
@@ -534,7 +534,7 @@ const AllianceAdvisor = () => {
                 <CardContent className="max-h-[400px] overflow-y-auto">
                   {isCalculating ? (
                     <div className="flex justify-center items-center py-8">
-                      <TeamMascotSpinner message="Calculating optimal alliances..." />
+                      <TeamMascotSpinner label="Calculating optimal alliances..." />
                     </div>
                   ) : alliances.length > 0 ? (
                     <Table>
