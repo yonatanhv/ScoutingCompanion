@@ -55,10 +55,11 @@ export const matchTypes = [
 
 // Climbing types (for REEFSCAPE game - climbing CAGES on the BARGE)
 export const climbingTypes = [
+  { value: "noData", label: "(No Data)" },
   { value: "none", label: "None" },
-  { value: "low", label: "Low" },
-  { value: "mid", label: "Mid" },
-  { value: "high", label: "High" }
+  { value: "park", label: "Park" },
+  { value: "shallow", label: "Shallow" },
+  { value: "deep", label: "Deep" }
 ];
 
 // Rating categories

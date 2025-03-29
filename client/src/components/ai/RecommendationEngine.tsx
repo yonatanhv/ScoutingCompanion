@@ -287,9 +287,9 @@ export function RecommendationEngine({
       reasons.push(...generateBasicReasons(team, role));
     }
     
-    // Cap the adjusted score at 10
+    // Cap the adjusted score at 7
     return { 
-      adjustedScore: Math.min(adjustedScore, 10), 
+      adjustedScore: Math.min(adjustedScore, 7), 
       reasons
     };
   };
@@ -406,7 +406,7 @@ export function RecommendationEngine({
                 </CardContent>
                 <CardFooter className="py-2 px-4 flex justify-between items-center bg-muted/30">
                   <div className="text-sm font-medium">
-                    Match: {rec.score.toFixed(1)}/10
+                    Match: {rec.score.toFixed(1)}/7
                   </div>
                   <Button 
                     onClick={() => {

@@ -50,9 +50,9 @@ export function checkRatingConsistency(ratings: RatingFields): ConsistencyWarnin
       let severity: 'low' | 'medium' | 'high' = 'medium';
       
       // Adjust severity based on the size of the difference
-      if (difference >= 3) {
+      if (difference >= 2.5) {
         severity = 'high';
-      } else if (difference <= 2.0) {
+      } else if (difference <= 1.8) {
         severity = 'low';
       }
       
