@@ -12,6 +12,7 @@ import { addMatchEntry } from "@/lib/db";
 import { MatchEntry } from "@/lib/types";
 import { webSocketService } from "@/lib/websocket";
 import { formSubmitVibration } from "@/lib/haptics";
+import ConsistencyWarningComponent from "@/components/ui/ConsistencyWarning";
 
 export default function ScoutMatch() {
   const { toast } = useToast();
@@ -369,6 +370,20 @@ export default function ScoutMatch() {
                 label="Additional Comments"
                 value={formData.comments || ""}
                 onChange={(value) => updateFormData("comments", value)}
+              />
+              
+              {/* Consistency Warning */}
+              <ConsistencyWarningComponent 
+                ratings={{
+                  defense: formData.defense,
+                  avoidingDefense: formData.avoidingDefense,
+                  scoringAlgae: formData.scoringAlgae,
+                  scoringCorals: formData.scoringCorals,
+                  autonomous: formData.autonomous,
+                  drivingSkill: formData.drivingSkill,
+                  overall: formData.overall
+                }}
+                className="mt-4"
               />
             </div>
             

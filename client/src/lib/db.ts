@@ -558,8 +558,12 @@ export async function getDBStats(): Promise<{
   const teams = await db.getAll('teams');
   const teamsWithData = teams.filter(team => team.matchCount > 0);
   
+  // Force a DB size recalculation by triggering a write to a temporary object store
+  // This ensures storage estimate is updated even after deleting data
   let storageEstimate = null;
   if ('storage' in navigator && 'estimate' in navigator.storage) {
+    // Request a fresh estimate from the browser
+    await new Promise(resolve => setTimeout(resolve, 100));
     storageEstimate = await navigator.storage.estimate() as { usage: number; quota: number };
   }
   
