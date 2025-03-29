@@ -112,3 +112,59 @@ export const insertCloudBackupSchema = createInsertSchema(cloudBackups).omit({
 
 export type InsertCloudBackup = z.infer<typeof insertCloudBackupSchema>;
 export type CloudBackup = typeof cloudBackups.$inferSelect;
+
+// Team tags table
+export const teamTags = pgTable("team_tags", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  tagId: text("tag_id").notNull(),
+  teamNumber: text("team_number").notNull(),
+  name: text("name").notNull(),
+  color: text("color").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertTeamTagSchema = createInsertSchema(teamTags).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertTeamTag = z.infer<typeof insertTeamTagSchema>;
+export type TeamTag = typeof teamTags.$inferSelect;
+
+// Filter presets table
+export const filterPresets = pgTable("filter_presets", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  presetId: text("preset_id").notNull(),
+  name: text("name").notNull(),
+  criteria: jsonb("criteria").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertFilterPresetSchema = createInsertSchema(filterPresets).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertFilterPreset = z.infer<typeof insertFilterPresetSchema>;
+export type FilterPreset = typeof filterPresets.$inferSelect;
+
+// Alliance presets table
+export const alliancePresets = pgTable("alliance_presets", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  name: text("name").notNull(),
+  teams: text("teams").array().notNull(),
+  notes: text("notes"),
+  isFavorite: boolean("is_favorite").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAlliancePresetSchema = createInsertSchema(alliancePresets).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertAlliancePreset = z.infer<typeof insertAlliancePresetSchema>;
+export type AlliancePreset = typeof alliancePresets.$inferSelect;

@@ -1,5 +1,5 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
-import { MatchEntry, TeamStatistics } from './types';
+import { MatchEntry, TeamStatistics, TeamTag, FilterPreset, Alliance, FilterCriteria } from './types';
 import { teams } from './teamData';
 
 // Define the database schema
@@ -17,11 +17,30 @@ interface ScoutingDB extends DBSchema {
     key: string;
     value: TeamStatistics;
   };
+  teamTags: {
+    key: string; // composite key: teamNumber + tagId
+    value: TeamTag;
+    indexes: {
+      'by-team': string;
+    };
+  };
+  filterPresets: {
+    key: string;
+    value: FilterPreset;
+  };
+  alliancePresets: {
+    key: string;
+    value: Alliance & { id: string; name: string; isFavorite?: boolean; };
+  };
+  favorites: {
+    key: string; // teamNumber
+    value: { teamNumber: string; timestamp: number; };
+  };
 }
 
 // Database name and version
 const DB_NAME = 'frc-scouting-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Increased version for new stores
 
 // Database instance
 let db: IDBPDatabase<ScoutingDB>;
@@ -54,7 +73,7 @@ export async function initDB(): Promise<void> {
   try {
     // Simple database initialization with schema creation only in the upgrade handler
     db = await openDB<ScoutingDB>(DB_NAME, DB_VERSION, {
-      upgrade(database) {
+      upgrade(database, oldVersion, newVersion) {
         // Create matches store if it doesn't exist
         if (!database.objectStoreNames.contains('matches')) {
           const matchesStore = database.createObjectStore('matches', { 
@@ -71,6 +90,38 @@ export async function initDB(): Promise<void> {
           database.createObjectStore('teams', { 
             keyPath: 'teamNumber' 
           });
+        }
+        
+        // Handle version upgrades
+        if (oldVersion < 2) {
+          // Create team tags store
+          if (!database.objectStoreNames.contains('teamTags')) {
+            const teamTagsStore = database.createObjectStore('teamTags', { 
+              keyPath: 'id' // id will be teamNumber + "_" + tagId
+            });
+            teamTagsStore.createIndex('by-team', 'teamNumber');
+          }
+          
+          // Create filter presets store
+          if (!database.objectStoreNames.contains('filterPresets')) {
+            database.createObjectStore('filterPresets', { 
+              keyPath: 'id' 
+            });
+          }
+          
+          // Create alliance presets store
+          if (!database.objectStoreNames.contains('alliancePresets')) {
+            database.createObjectStore('alliancePresets', { 
+              keyPath: 'id' 
+            });
+          }
+          
+          // Create favorites store
+          if (!database.objectStoreNames.contains('favorites')) {
+            database.createObjectStore('favorites', { 
+              keyPath: 'teamNumber' 
+            });
+          }
         }
       },
       blocked() {
@@ -531,5 +582,375 @@ export async function clearAllData(): Promise<void> {
   // Reset team statistics
   for (const team of teams) {
     await updateTeamStatistics(team[0]);
+  }
+}
+
+// --------------- Team Tags Functions ---------------
+
+// Add a tag to a team
+export async function addTeamTag(teamNumber: string, tag: Omit<TeamTag, 'id'>): Promise<string> {
+  try {
+    // Generate a unique ID for the tag
+    const tagId = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    
+    // Create the full tag with ID
+    const fullTag: TeamTag = {
+      ...tag,
+      id: tagId
+    };
+    
+    // Create a composite key for storage
+    const compositeKey = `${teamNumber}_${tagId}`;
+    
+    // Add to database
+    await db.put('teamTags', {
+      ...fullTag,
+      teamNumber,
+      id: compositeKey
+    });
+    
+    return tagId;
+  } catch (error) {
+    console.error('Error adding team tag:', error);
+    throw error;
+  }
+}
+
+// Get all tags for a team
+export async function getTeamTags(teamNumber: string): Promise<TeamTag[]> {
+  try {
+    const tags = await db.getAllFromIndex('teamTags', 'by-team', teamNumber);
+    return tags.map(tag => ({
+      id: tag.id.split('_')[1], // Extract the original tag ID
+      name: tag.name,
+      color: tag.color
+    }));
+  } catch (error) {
+    console.error('Error getting team tags:', error);
+    return [];
+  }
+}
+
+// Delete a tag from a team
+export async function deleteTeamTag(teamNumber: string, tagId: string): Promise<void> {
+  try {
+    const compositeKey = `${teamNumber}_${tagId}`;
+    await db.delete('teamTags', compositeKey);
+  } catch (error) {
+    console.error('Error deleting team tag:', error);
+    throw error;
+  }
+}
+
+// --------------- Alliance Builder Functions ---------------
+
+// Calculate alliance statistics
+export async function buildAlliance(teamNumbers: string[]): Promise<Alliance | null> {
+  try {
+    if (teamNumbers.length === 0) return null;
+    
+    // Get team statistics for each team
+    const teamStats: (TeamStatistics | undefined)[] = await Promise.all(
+      teamNumbers.map(teamNumber => getTeamStatistics(teamNumber))
+    );
+    
+    // Filter out any undefined team stats
+    const validTeamStats = teamStats.filter(stat => stat !== undefined) as TeamStatistics[];
+    
+    if (validTeamStats.length === 0) return null;
+    
+    // Initialize combined statistics
+    const combinedAverages = {
+      defense: 0,
+      avoidingDefense: 0,
+      scoringAlgae: 0,
+      scoringCorals: 0,
+      autonomous: 0,
+      drivingSkill: 0,
+      overall: 0,
+    };
+    
+    const climbingBreakdown = {
+      none: 0,
+      low: 0,
+      high: 0,
+    };
+    
+    // Calculate combined statistics
+    validTeamStats.forEach(team => {
+      combinedAverages.defense += team.averages.defense;
+      combinedAverages.avoidingDefense += team.averages.avoidingDefense;
+      combinedAverages.scoringAlgae += team.averages.scoringAlgae;
+      combinedAverages.scoringCorals += team.averages.scoringCorals;
+      combinedAverages.autonomous += team.averages.autonomous;
+      combinedAverages.drivingSkill += team.averages.drivingSkill;
+      combinedAverages.overall += team.averages.overall;
+      
+      climbingBreakdown.none += team.climbingStats.none;
+      climbingBreakdown.low += team.climbingStats.low;
+      climbingBreakdown.high += team.climbingStats.high;
+    });
+    
+    // Calculate average values
+    const teamCount = validTeamStats.length;
+    for (const key in combinedAverages) {
+      combinedAverages[key as keyof typeof combinedAverages] /= teamCount;
+    }
+    
+    // Identify strengths and weaknesses
+    const strengths: string[] = [];
+    const weaknesses: string[] = [];
+    
+    // Check if there's at least one high climber
+    if (climbingBreakdown.high > 0) {
+      strengths.push('Has high climber capability');
+    } else {
+      weaknesses.push('No high climber capability');
+    }
+    
+    // Check scoring capabilities
+    if (combinedAverages.scoringAlgae >= 5) {
+      strengths.push('Strong algae scoring');
+    } else if (combinedAverages.scoringAlgae < 3) {
+      weaknesses.push('Weak algae scoring');
+    }
+    
+    if (combinedAverages.scoringCorals >= 5) {
+      strengths.push('Strong coral scoring');
+    } else if (combinedAverages.scoringCorals < 3) {
+      weaknesses.push('Weak coral scoring');
+    }
+    
+    // Check defense capabilities
+    if (combinedAverages.defense >= 5) {
+      strengths.push('Strong defensive capability');
+    } else if (combinedAverages.defense < 3) {
+      weaknesses.push('Weak defensive capability');
+    }
+    
+    if (combinedAverages.avoidingDefense >= 5) {
+      strengths.push('Good at avoiding defense');
+    } else if (combinedAverages.avoidingDefense < 3) {
+      weaknesses.push('Struggles against defense');
+    }
+    
+    // Check autonomous
+    if (combinedAverages.autonomous >= 5) {
+      strengths.push('Strong autonomous performance');
+    } else if (combinedAverages.autonomous < 3) {
+      weaknesses.push('Weak autonomous performance');
+    }
+    
+    // Calculate synergy score (1-10)
+    // This is a simplified algorithm that can be improved with more complex logic
+    let synergy = 5; // Start at neutral
+    
+    // Bonus for complementary capabilities
+    const hasDefender = validTeamStats.some(team => team.averages.defense >= 5);
+    const hasScorer = validTeamStats.some(team => 
+      team.averages.scoringAlgae >= 5 || team.averages.scoringCorals >= 5
+    );
+    const hasHighClimber = validTeamStats.some(team => 
+      team.climbingStats.high > team.climbingStats.none && team.climbingStats.high > team.climbingStats.low
+    );
+    
+    if (hasDefender && hasScorer) synergy += 1;
+    if (hasHighClimber) synergy += 1;
+    if (combinedAverages.autonomous >= 4.5) synergy += 1;
+    
+    // High variance in defense vs scoring is good (specialized roles)
+    const defenseScores = validTeamStats.map(team => team.averages.defense);
+    const scoringScores = validTeamStats.map(team => 
+      (team.averages.scoringAlgae + team.averages.scoringCorals) / 2
+    );
+    
+    const defenseVariance = calculateVariance(defenseScores);
+    const scoringVariance = calculateVariance(scoringScores);
+    
+    if (defenseVariance > 1.5 && scoringVariance > 1.5) synergy += 1;
+    
+    // Cap synergy at 10
+    synergy = Math.min(Math.round(synergy), 10);
+    
+    return {
+      teams: teamNumbers,
+      combinedAverages,
+      climbingBreakdown,
+      strengths,
+      weaknesses,
+      synergy
+    };
+  } catch (error) {
+    console.error('Error building alliance:', error);
+    return null;
+  }
+}
+
+// Helper function to calculate variance of an array of numbers
+function calculateVariance(numbers: number[]): number {
+  if (numbers.length === 0) return 0;
+  
+  const mean = numbers.reduce((sum, val) => sum + val, 0) / numbers.length;
+  const squareDiffs = numbers.map(value => {
+    const diff = value - mean;
+    return diff * diff;
+  });
+  return squareDiffs.reduce((sum, val) => sum + val, 0) / numbers.length;
+}
+
+// Save an alliance preset
+export async function saveAlliancePreset(name: string, teams: string[], isFavorite: boolean = false): Promise<string> {
+  try {
+    // Calculate alliance statistics
+    const alliance = await buildAlliance(teams);
+    
+    if (!alliance) {
+      throw new Error('Failed to build alliance statistics');
+    }
+    
+    // Generate unique ID
+    const id = `alliance_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    
+    // Store in database
+    await db.put('alliancePresets', {
+      ...alliance,
+      id,
+      name,
+      isFavorite
+    });
+    
+    return id;
+  } catch (error) {
+    console.error('Error saving alliance preset:', error);
+    throw error;
+  }
+}
+
+// Get all alliance presets
+export async function getAllAlliancePresets(): Promise<(Alliance & { id: string; name: string; isFavorite?: boolean })[]> {
+  try {
+    return db.getAll('alliancePresets');
+  } catch (error) {
+    console.error('Error getting alliance presets:', error);
+    return [];
+  }
+}
+
+// Delete an alliance preset
+export async function deleteAlliancePreset(id: string): Promise<void> {
+  try {
+    await db.delete('alliancePresets', id);
+  } catch (error) {
+    console.error('Error deleting alliance preset:', error);
+    throw error;
+  }
+}
+
+// --------------- Filter Preset Functions ---------------
+
+// Save a filter preset
+export async function saveFilterPreset(name: string, criteria: FilterCriteria): Promise<string> {
+  try {
+    // Generate unique ID
+    const id = `filter_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    
+    // Create full preset
+    const preset: FilterPreset = {
+      id,
+      name,
+      criteria
+    };
+    
+    // Store in database
+    await db.put('filterPresets', preset);
+    
+    return id;
+  } catch (error) {
+    console.error('Error saving filter preset:', error);
+    throw error;
+  }
+}
+
+// Get all filter presets
+export async function getAllFilterPresets(): Promise<FilterPreset[]> {
+  try {
+    return db.getAll('filterPresets');
+  } catch (error) {
+    console.error('Error getting filter presets:', error);
+    return [];
+  }
+}
+
+// Delete a filter preset
+export async function deleteFilterPreset(id: string): Promise<void> {
+  try {
+    await db.delete('filterPresets', id);
+  } catch (error) {
+    console.error('Error deleting filter preset:', error);
+    throw error;
+  }
+}
+
+// --------------- Favorites Functions ---------------
+
+// Add a team to favorites
+export async function addTeamToFavorites(teamNumber: string): Promise<void> {
+  try {
+    await db.put('favorites', {
+      teamNumber,
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    console.error('Error adding team to favorites:', error);
+    throw error;
+  }
+}
+
+// Remove a team from favorites
+export async function removeTeamFromFavorites(teamNumber: string): Promise<void> {
+  try {
+    await db.delete('favorites', teamNumber);
+  } catch (error) {
+    console.error('Error removing team from favorites:', error);
+    throw error;
+  }
+}
+
+// Check if a team is in favorites
+export async function isTeamFavorite(teamNumber: string): Promise<boolean> {
+  try {
+    const favorite = await db.get('favorites', teamNumber);
+    return favorite !== undefined;
+  } catch (error) {
+    console.error('Error checking if team is favorite:', error);
+    return false;
+  }
+}
+
+// Get all favorite teams with their statistics
+export async function getAllFavoriteTeams(): Promise<TeamStatistics[]> {
+  try {
+    const favorites = await db.getAll('favorites');
+    const favoriteTeamNumbers = favorites.map(f => f.teamNumber);
+    
+    // Get the statistics for each favorite team
+    const favoriteTeams: TeamStatistics[] = [];
+    
+    for (const teamNumber of favoriteTeamNumbers) {
+      const teamStats = await getTeamStatistics(teamNumber);
+      if (teamStats) {
+        favoriteTeams.push(teamStats);
+      }
+    }
+    
+    // Sort by the timestamp they were added (most recent first)
+    return favoriteTeams.sort((a, b) => {
+      const aFav = favorites.find(f => f.teamNumber === a.teamNumber);
+      const bFav = favorites.find(f => f.teamNumber === b.teamNumber);
+      return (bFav?.timestamp || 0) - (aFav?.timestamp || 0);
+    });
+  } catch (error) {
+    console.error('Error getting favorite teams:', error);
+    return [];
   }
 }

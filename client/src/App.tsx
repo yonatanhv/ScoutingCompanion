@@ -8,6 +8,8 @@ import ViewTeam from "@/pages/ViewTeam";
 import DataSync from "@/pages/DataSync";
 import TeamAnalytics from "@/pages/TeamAnalytics";
 import CloudBackup from "@/pages/CloudBackup";
+import AllianceBuilder from "@/pages/AllianceBuilder";
+import FilterDashboard from "@/pages/FilterDashboard";
 import NotFound from "@/pages/not-found";
 import { useToast } from "@/hooks/use-toast";
 import { BackgroundParticles } from "@/components/ui/background-particles";
@@ -28,6 +30,8 @@ function Router() {
       <Route path="/team" component={ViewTeam} />
       <Route path="/data" component={DataSync} />
       <Route path="/analytics" component={TeamAnalytics} />
+      <Route path="/alliance" component={AllianceBuilder} />
+      <Route path="/filters" component={FilterDashboard} />
       <Route path="/backup" component={CloudBackup} />
       <Route component={NotFound} />
     </Switch>

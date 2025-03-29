@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Download, Cpu, ClipboardCheck, Users, BarChart2, RefreshCw, Database } from "lucide-react";
+import { Download, Cpu, ClipboardCheck, Users, BarChart2, RefreshCw, Database, Sliders } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -93,6 +93,8 @@ export default function Header() {
     { path: '/scout', label: 'Scout', icon: <ClipboardCheck className="h-5 w-5" /> },
     { path: '/team', label: 'Teams', icon: <Users className="h-5 w-5" /> },
     { path: '/analytics', label: 'Analytics', icon: <BarChart2 className="h-5 w-5" /> },
+    { path: '/alliance', label: 'Alliance', icon: <Cpu className="h-5 w-5" /> },
+    { path: '/filters', label: 'Filters', icon: <Sliders className="h-5 w-5" /> },
     { path: '/data', label: 'Sync', icon: <RefreshCw className="h-5 w-5" /> },
     { path: '/backup', label: 'Backup', icon: <Database className="h-5 w-5" /> }
   ];

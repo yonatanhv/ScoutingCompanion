@@ -209,18 +209,7 @@ export default function ScoutMatch() {
 
   return (
     <>
-      {/* Desktop navigation tabs (hidden on mobile) */}
-      <div className="hidden md:flex mb-6 border-b border-gray-300">
-        <a href="/scout" className="tab-btn active py-2 px-4 font-medium text-primary border-b-2 border-primary">
-          <i className="fas fa-clipboard-list mr-2"></i>Scout Match
-        </a>
-        <a href="/team" className="tab-btn py-2 px-4 font-medium text-gray-700">
-          <i className="fas fa-users mr-2"></i>View Team
-        </a>
-        <a href="/data" className="tab-btn py-2 px-4 font-medium text-gray-700">
-          <i className="fas fa-sync-alt mr-2"></i>Export / Import
-        </a>
-      </div>
+
       
       <Card>
         <CardContent className="p-4 md:p-6">

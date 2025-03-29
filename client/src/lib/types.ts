@@ -83,4 +83,48 @@ export interface FilterCriteria {
   minOverallScore?: number;
   matchNumberStart?: number;
   matchNumberEnd?: number;
+  tags?: string[];
+  minDefense?: number;
+  minAvoidingDefense?: number;
+  minScoringAlgae?: number;
+  minScoringCorals?: number;
+  minAutonomous?: number;
+  minDrivingSkill?: number;
+}
+
+// Team tags
+export interface TeamTag {
+  id: string; // unique ID for the tag
+  name: string; // display name
+  color: string; // color code for display
+  teamNumber?: string; // Associated team number (used for indexedDB storage)
+}
+
+// Alliance details
+export interface Alliance {
+  teams: string[]; // Array of 3 team numbers
+  combinedAverages: {
+    defense: number;
+    avoidingDefense: number;
+    scoringAlgae: number;
+    scoringCorals: number;
+    autonomous: number;
+    drivingSkill: number;
+    overall: number;
+  };
+  climbingBreakdown: {
+    none: number;
+    low: number;
+    high: number;
+  };
+  strengths: string[];
+  weaknesses: string[];
+  synergy: number; // 1-10 rating of how well teams complement each other
+}
+
+// Filter preset
+export interface FilterPreset {
+  id: string;
+  name: string;
+  criteria: FilterCriteria;
 }
