@@ -17,26 +17,28 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 // Green Blitz logo component
 const GreenBlitzLogo = () => (
   <svg
-    width="60"
-    height="60"
-    viewBox="0 0 60 60"
+    width="100"
+    height="100"
+    viewBox="0 0 2000 2000"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     className="mx-auto mb-4"
   >
     <path
-      d="M30 0C13.432 0 0 13.432 0 30C0 46.568 13.432 60 30 60C46.568 60 60 46.568 60 30C60 13.432 46.568 0 30 0ZM45 40C45 42.761 42.761 45 40 45H20C17.239 45 15 42.761 15 40V20C15 17.239 17.239 15 20 15H40C42.761 15 45 17.239 45 20V40Z"
-      fill="#0D5C26"
+      d="M1000 0C447.715 0 0 447.715 0 1000C0 1552.28 447.715 2000 1000 2000C1552.28 2000 2000 1552.28 2000 1000C2000 447.715 1552.28 0 1000 0Z"
+      fill="#1CB850"
+    />
+    <path 
+      d="M1250 1250H750V750H1250V1250Z"
+      fill="#00361E"
     />
     <path
-      d="M37 23L30 18L23 23V32L30 37L37 32V23Z"
-      fill="#0D5C26"
-      stroke="#0D5C26"
-      strokeWidth="2"
+      d="M1000 500L500 750V1250L1000 1500L1500 1250V750L1000 500Z"
+      fill="#00361E"
     />
     <path
-      d="M30 28L25 25V31L30 34L35 31V25L30 28Z"
-      fill="white"
+      d="M1000 900L800 800V1100L1000 1200L1200 1100V800L1000 900Z"
+      fill="#FFFFFF"
     />
   </svg>
 );

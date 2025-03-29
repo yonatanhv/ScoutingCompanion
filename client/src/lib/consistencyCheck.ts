@@ -45,14 +45,14 @@ export function checkRatingConsistency(ratings: RatingFields): ConsistencyWarnin
   if (ratings.overall !== undefined && totalIndividualRatings >= 3) {
     const difference = Math.abs(avgRating - ratings.overall);
     
-    // More than 2 points difference between average and overall
-    if (difference > 2) {
+    // More than 1.5 points difference between average and overall
+    if (difference > 1.5) {
       let severity: 'low' | 'medium' | 'high' = 'medium';
       
       // Adjust severity based on the size of the difference
-      if (difference >= 4) {
+      if (difference >= 3) {
         severity = 'high';
-      } else if (difference <= 2.5) {
+      } else if (difference <= 2.0) {
         severity = 'low';
       }
       
