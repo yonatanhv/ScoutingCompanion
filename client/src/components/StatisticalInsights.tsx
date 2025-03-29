@@ -17,18 +17,20 @@ export function StatisticalInsights({ teamStats, matches }: StatisticalInsightsP
     { name: 'Shallow', value: teamStats.climbingStats.shallow || 0 },
     { name: 'Park', value: teamStats.climbingStats.park || 0 },
     { name: 'None', value: teamStats.climbingStats.none || 0 },
-    { name: 'No Data', value: teamStats.climbingStats.noData || 0 },
   ].filter(item => item.value > 0);
   
   // Colors for the pie chart
-  const COLORS = ['#22c55e', '#0ea5e9', '#3b82f6', '#f97316', '#a855f7'];
+  const COLORS = ['#22c55e', '#0ea5e9', '#3b82f6', '#f97316'];
   
   // Calculate win percentage if alliance data is available
   const calculateWinPercentage = () => {
     if (matches.length === 0) return { percent: 0, count: 0 };
     
     // This is a simple estimation based on overall score - in a real app you would track actual match results
-    const highPerformanceMatches = matches.filter(match => match.overall >= 5);
+    const highPerformanceMatches = matches.filter(match => {
+      const overall = typeof match.overall === 'number' ? match.overall : 0;
+      return overall >= 5;
+    });
     return {
       percent: Math.round((highPerformanceMatches.length / matches.length) * 100),
       count: highPerformanceMatches.length
@@ -42,7 +44,11 @@ export function StatisticalInsights({ teamStats, matches }: StatisticalInsightsP
     if (matches.length < 3) return { status: 'neutral', label: 'Not enough data' };
     
     // Sort by timestamp (newest first)
-    const sortedMatches = [...matches].sort((a, b) => b.timestamp - a.timestamp);
+    const sortedMatches = [...matches].sort((a, b) => {
+      const timestampA = a.timestamp instanceof Date ? a.timestamp.getTime() : +a.timestamp;
+      const timestampB = b.timestamp instanceof Date ? b.timestamp.getTime() : +b.timestamp;
+      return timestampB - timestampA;
+    });
     
     // Compare recent matches with earlier matches
     const recentMatches = sortedMatches.slice(0, Math.ceil(sortedMatches.length / 2));
@@ -52,8 +58,8 @@ export function StatisticalInsights({ teamStats, matches }: StatisticalInsightsP
       return { status: 'neutral', label: 'Not enough data' };
     }
     
-    const recentAvg = recentMatches.reduce((sum, match) => sum + match.overall, 0) / recentMatches.length;
-    const olderAvg = olderMatches.reduce((sum, match) => sum + match.overall, 0) / olderMatches.length;
+    const recentAvg = recentMatches.reduce((sum, match) => sum + (typeof match.overall === 'number' ? match.overall : 0), 0) / recentMatches.length;
+    const olderAvg = olderMatches.reduce((sum, match) => sum + (typeof match.overall === 'number' ? match.overall : 0), 0) / olderMatches.length;
     
     const diff = recentAvg - olderAvg;
     if (diff > 0.5) return { status: 'improving', label: 'Improving' };
@@ -67,7 +73,7 @@ export function StatisticalInsights({ teamStats, matches }: StatisticalInsightsP
   const calculateConsistency = () => {
     if (matches.length < 2) return { level: 'unknown', value: 0, label: 'Not enough data' };
     
-    const overallScores = matches.map(match => match.overall);
+    const overallScores = matches.map(match => typeof match.overall === 'number' ? match.overall : 0);
     const mean = overallScores.reduce((sum, score) => sum + score, 0) / overallScores.length;
     
     const squaredDiffs = overallScores.map(score => Math.pow(score - mean, 2));
@@ -99,7 +105,11 @@ export function StatisticalInsights({ teamStats, matches }: StatisticalInsightsP
   const findBestAndWorstPerformances = () => {
     if (matches.length === 0) return { best: null, worst: null };
     
-    const sortedByOverall = [...matches].sort((a, b) => b.overall - a.overall);
+    const sortedByOverall = [...matches].sort((a, b) => {
+      const overallA = typeof a.overall === 'number' ? a.overall : 0;
+      const overallB = typeof b.overall === 'number' ? b.overall : 0;
+      return overallB - overallA;
+    });
     return {
       best: sortedByOverall[0],
       worst: sortedByOverall[sortedByOverall.length - 1]

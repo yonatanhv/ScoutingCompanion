@@ -159,34 +159,75 @@ export function RecommendationEngine({
   };
 
   const determineTeamRole = (team: TeamStatistics): 'defense' | 'offense' | 'balanced' | 'climbing' | 'autonomous' => {
-    const { averages } = team;
+    const { averages, matchCount, climbingStats } = team;
     
-    // Determine the primary strength of the team
-    if (averages.defense > 5.5) return 'defense';
-    if ((averages.scoringCorals + averages.scoringAlgae) / 2 > 5.5) return 'offense';
-    if (team.climbingStats.deep > Math.max(team.climbingStats.none, team.climbingStats.park, team.climbingStats.shallow)) return 'climbing';
-    if (averages.autonomous > 5.5) return 'autonomous';
+    // Calculate relative strengths in different areas
+    const defenseStrength = averages.defense * 1.1; // Slightly weight defense
+    const scoringStrength = (averages.scoringCorals + averages.scoringAlgae) / 2;
     
+    // Calculate climbing prowess - weight deep climbs more heavily
+    const deepClimbRate = climbingStats.deep / Math.max(1, matchCount);
+    const shallowClimbRate = climbingStats.shallow / Math.max(1, matchCount);
+    const climbingStrength = (deepClimbRate * 7.0) + (shallowClimbRate * 3.0);
+    
+    // Check for autonomous specialists
+    const autonomousStrength = averages.autonomous * 1.2; // Higher weight for autonomous
+    
+    // Determine primary role based on highest strength
+    const strengths = [
+      { role: 'defense', value: defenseStrength },
+      { role: 'offense', value: scoringStrength },
+      { role: 'climbing', value: climbingStrength },
+      { role: 'autonomous', value: autonomousStrength }
+    ];
+    
+    // Sort strengths from highest to lowest
+    strengths.sort((a, b) => b.value - a.value);
+    
+    // Check if the highest strength is significantly better than others (indicating specialization)
+    const topStrength = strengths[0];
+    const secondStrength = strengths[1];
+    
+    // If the top strength is at least 30% better than the second, consider it a specialization
+    if (topStrength.value > 5.0 && (topStrength.value > secondStrength.value * 1.3)) {
+      return topStrength.role as 'defense' | 'offense' | 'balanced' | 'climbing' | 'autonomous';
+    }
+    
+    // If no clear specialization or all strengths are low, consider it balanced
     return 'balanced';
   };
 
   const calculateBaseScore = (team: TeamStatistics): number => {
-    const { averages, matchCount } = team;
+    const { averages, matchCount, climbingStats } = team;
     
-    // Base score is weighted average of key metrics
+    // Calculate climbing success rate for deep climbs
+    const deepClimbSuccessRate = team.climbingStats.deep / Math.max(1, matchCount);
+    const shallowClimbSuccessRate = team.climbingStats.shallow / Math.max(1, matchCount);
+    const climbingScore = (deepClimbSuccessRate * 7.0) + (shallowClimbSuccessRate * 3.5);
+    
+    // Calculate scoring efficiency
+    const scoringEfficiency = (averages.scoringCorals + averages.scoringAlgae) / 2;
+    
+    // Calculate defensive capability as a combination of defense and avoiding defense
+    const defensiveCapability = (averages.defense * 0.6) + (averages.avoidingDefense * 0.4);
+    
+    // Base score with improved weighting and consideration of climbing
     const baseScore = (
-      averages.overall * 0.3 + 
+      averages.overall * 0.25 + 
       averages.autonomous * 0.15 + 
-      averages.drivingSkill * 0.1 + 
-      ((averages.scoringCorals + averages.scoringAlgae) / 2) * 0.25 + 
-      averages.defense * 0.1 +
-      averages.avoidingDefense * 0.1
+      averages.drivingSkill * 0.15 + 
+      scoringEfficiency * 0.2 + 
+      defensiveCapability * 0.15 +
+      Math.min(climbingScore, 7) * 0.1
     );
     
-    // Adjust for data confidence based on match count
+    // Adjust for data confidence based on match count (more weight for more matches)
     const matchCountFactor = Math.min(matchCount / 5, 1); // Max out at 5 matches
     
-    return baseScore * matchCountFactor;
+    // Apply a slight boost for teams with consistent performance
+    const consistencyBonus = team.matchCount >= 3 ? 0.2 : 0;
+    
+    return Math.min(7, baseScore * matchCountFactor + consistencyBonus);
   };
 
   const determineAllianceStrengths = (alliance: Alliance): Record<string, number> => {
@@ -230,7 +271,7 @@ export function RecommendationEngine({
     let adjustedScore = baseScore;
     const reasons: string[] = [];
     
-    // Check if team addresses alliance weaknesses
+    // First, check if team addresses alliance weaknesses
     Object.entries(allianceWeaknesses).forEach(([weakness, value]) => {
       let teamStrength = 0;
       
@@ -238,44 +279,55 @@ export function RecommendationEngine({
         case 'autonomous':
           teamStrength = team.averages.autonomous;
           if (teamStrength > 5.0) {
-            adjustedScore += 1.5;
+            // Scale boost based on how strong they are vs. how weak the alliance is
+            const boost = 1.5 * (1 + (5.0 - value) / 5.0);
+            adjustedScore += boost;
             reasons.push(`Strong autonomous (${teamStrength.toFixed(1)}/7) addresses alliance weakness`);
           }
           break;
         case 'defense':
           teamStrength = team.averages.defense;
           if (teamStrength > 5.0) {
-            adjustedScore += 1.5;
+            const boost = 1.5 * (1 + (5.0 - value) / 5.0);
+            adjustedScore += boost;
             reasons.push(`Strong defense capability (${teamStrength.toFixed(1)}/7) addresses alliance need`);
           }
           break;
         case 'scoringCorals':
           teamStrength = team.averages.scoringCorals;
           if (teamStrength > 5.0) {
-            adjustedScore += 1.3;
+            const boost = 1.3 * (1 + (5.0 - value) / 5.0);
+            adjustedScore += boost;
             reasons.push(`Effective at scoring corals (${teamStrength.toFixed(1)}/7)`);
           }
           break;
         case 'scoringAlgae':
           teamStrength = team.averages.scoringAlgae;
           if (teamStrength > 5.0) {
-            adjustedScore += 1.3;
+            const boost = 1.3 * (1 + (5.0 - value) / 5.0);
+            adjustedScore += boost;
             reasons.push(`Effective at scoring algae (${teamStrength.toFixed(1)}/7)`);
           }
           break;
         case 'avoidingDefense':
           teamStrength = team.averages.avoidingDefense;
           if (teamStrength > 5.0) {
-            adjustedScore += 1.0;
+            const boost = 1.0 * (1 + (5.0 - value) / 5.0);
+            adjustedScore += boost;
             reasons.push(`Good at avoiding defensive play (${teamStrength.toFixed(1)}/7)`);
           }
           break;
         case 'climbing':
           // Check climbing success based on climbing stats
-          const deepRate = team.climbingStats.deep / team.matchCount;
-          if (deepRate > 0.6) {
-            adjustedScore += 1.8;
-            reasons.push(`Reliable deep climbing (${Math.round(deepRate * 100)}% success rate)`);
+          const deepRate = team.climbingStats.deep / Math.max(1, team.matchCount);
+          const shallowRate = team.climbingStats.shallow / Math.max(1, team.matchCount);
+          const climbSuccessRate = deepRate + (shallowRate * 0.5);
+          
+          if (climbSuccessRate > 0.4) {
+            // Higher boost for deep climbing success
+            const boost = deepRate > 0.5 ? 1.8 : 1.2;
+            adjustedScore += boost * (1 + (0.7 - value / 7) / 0.7);
+            reasons.push(`Reliable climbing (${Math.round(deepRate * 100)}% deep, ${Math.round(shallowRate * 100)}% shallow)`);
           }
           break;
       }

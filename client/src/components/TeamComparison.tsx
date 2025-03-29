@@ -153,13 +153,6 @@ export function TeamComparison({ teamStats, comparisonStats }: TeamComparisonPro
         [comparisonStats.teamNumber]: comparisonStats.climbingStats.none,
         [`${comparisonStats.teamNumber}Color`]: '#ef4444',
       },
-      {
-        category: 'No Data',
-        [teamStats.teamNumber]: teamStats.climbingStats.noData,
-        [`${teamStats.teamNumber}Color`]: '#3b82f6',
-        [comparisonStats.teamNumber]: comparisonStats.climbingStats.noData,
-        [`${comparisonStats.teamNumber}Color`]: '#ef4444',
-      },
     ];
   };
   

@@ -438,7 +438,6 @@ export function generateDefaultTeamStatistics(teamNumber: string, teamName: stri
       overall: 0
     },
     climbingStats: {
-      noData: 0,
       none: 0,
       park: 0,
       shallow: 0,
