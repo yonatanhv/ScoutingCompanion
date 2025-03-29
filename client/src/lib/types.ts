@@ -81,4 +81,6 @@ export interface FilterCriteria {
   matchType?: string;
   climbing?: string;
   minOverallScore?: number;
+  matchNumberStart?: number;
+  matchNumberEnd?: number;
 }

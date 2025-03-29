@@ -217,6 +217,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           // Check if match already exists by combination of team, matchType, and matchNumber
+          console.log(`Looking for match: Team ${matchData.team}, Type ${matchData.matchType}, Number ${matchData.matchNumber}`);
+          
           const [existingMatch] = await db.select()
             .from(matchEntries)
             .where(
@@ -323,6 +325,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             if (data.matchData) {
               const { id, ...matchData } = data.matchData;
               
+              console.log(`WS new match: Team ${matchData.team}, Type ${matchData.matchType}, Number ${matchData.matchNumber}`);
+              
               // Validate the match data
               const parsed = insertMatchEntrySchema.safeParse(matchData);
               if (parsed.success) {
@@ -419,6 +423,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
   }
+  
+  // Delete all server data (emergency recovery option)
+  app.delete("/api/sync/all", async (req, res) => {
+    try {
+      // First delete all match entries
+      await db.delete(matchEntries);
+      
+      // Then delete all team statistics
+      await db.delete(teamStatistics);
+      
+      // Broadcast to all clients that data has been deleted
+      broadcastToAll({
+        type: 'server_data_deleted',
+        timestamp: Date.now(),
+        message: 'All server data has been deleted'
+      });
+      
+      console.log('All server data deleted by admin request');
+      
+      res.json({ 
+        success: true, 
+        message: "All server data has been deleted" 
+      });
+    } catch (error) {
+      console.error("Error deleting server data:", error);
+      res.status(500).json({ error: "Failed to delete server data" });
+    }
+  });
   
   // Cloud backup endpoints
   app.post("/api/cloud/backup", async (req, res) => {

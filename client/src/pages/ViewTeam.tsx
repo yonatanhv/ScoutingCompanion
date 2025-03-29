@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -49,6 +50,8 @@ export default function ViewTeam() {
     matchType: "",
     climbing: "",
     minOverallScore: 1,
+    matchNumberStart: undefined,
+    matchNumberEnd: undefined,
   });
   
   // Selected match for the detail dialog
@@ -314,6 +317,51 @@ export default function ViewTeam() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                
+                {/* Match Number Range Filter */}
+                <div className="mt-4">
+                  <Label className="block mb-1 text-sm">Match Number Range</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      placeholder="From"
+                      className="w-24"
+                      value={filters.matchNumberStart || ''}
+                      onChange={(e) => setFilters(prev => ({
+                        ...prev,
+                        matchNumberStart: e.target.value ? parseInt(e.target.value) : undefined
+                      }))}
+                      min="1"
+                    />
+                    <span className="text-sm text-gray-500">to</span>
+                    <Input
+                      type="number"
+                      placeholder="To"
+                      className="w-24"
+                      value={filters.matchNumberEnd || ''}
+                      onChange={(e) => setFilters(prev => ({
+                        ...prev,
+                        matchNumberEnd: e.target.value ? parseInt(e.target.value) : undefined
+                      }))}
+                      min="1"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFilters(prev => ({
+                        ...prev,
+                        matchNumberStart: undefined,
+                        matchNumberEnd: undefined
+                      }))}
+                      className="ml-2"
+                    >
+                      Clear Range
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Filter to see only matches within a specific number range
+                  </p>
                 </div>
               </div>
               

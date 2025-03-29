@@ -233,11 +233,17 @@ export async function deleteMatchEntry(id: number): Promise<void> {
 export async function getFilteredMatches({
   teamNumber,
   matchType,
+  matchNumber,
+  matchNumberStart,
+  matchNumberEnd,
   climbing,
   minOverallScore,
 }: {
   teamNumber?: string;
   matchType?: string;
+  matchNumber?: number;
+  matchNumberStart?: number;
+  matchNumberEnd?: number;
   climbing?: string;
   minOverallScore?: number;
 }): Promise<MatchEntry[]> {
@@ -250,7 +256,26 @@ export async function getFilteredMatches({
   }
   
   return matches.filter(match => {
+    // Filter by match type
     if (matchType && match.matchType !== matchType) return false;
+    
+    // Filter by exact match number if provided
+    if (matchNumber !== undefined && match.matchNumber !== matchNumber) return false;
+    
+    // Filter by match number range if both start and end are provided
+    if (matchNumberStart !== undefined && matchNumberEnd !== undefined) {
+      // Make sure we include the boundaries
+      if (match.matchNumber < matchNumberStart || match.matchNumber > matchNumberEnd) return false;
+    } 
+    // Filter by minimum match number only
+    else if (matchNumberStart !== undefined && match.matchNumber < matchNumberStart) {
+      return false;
+    } 
+    // Filter by maximum match number only
+    else if (matchNumberEnd !== undefined && match.matchNumber > matchNumberEnd) {
+      return false;
+    }
+    
     if (climbing && match.climbing !== climbing) return false;
     if (minOverallScore && match.overall < minOverallScore) return false;
     return true;

@@ -67,6 +67,7 @@ export default function DataSync() {
   // Confirmation dialogs
   const [showClearTeamDialog, setShowClearTeamDialog] = useState(false);
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
+  const [showClearServerDialog, setShowClearServerDialog] = useState(false);
   const [teamToClear, setTeamToClear] = useState("");
 
   // Last sync timestamp
@@ -193,10 +194,11 @@ export default function DataSync() {
               syncedAt: allServerDataResponse.timestamp || Date.now()
             };
             
-            // Check if we already have this match
+            // Check if we already have this match - match team, match type, and match number
             const existingMatches = await getFilteredMatches({
               teamNumber: serverMatch.team,
-              matchType: serverMatch.matchType
+              matchType: serverMatch.matchType,
+              matchNumber: serverMatch.matchNumber
             });
             
             if (existingMatches.length === 0) {
@@ -322,6 +324,18 @@ export default function DataSync() {
       loadDbStats();
     });
     
+    // Listen for server data deleted events
+    const serverDataDeletedListener = webSocketService.addListener('server_data_deleted', (data) => {
+      console.log('Received server_data_deleted event:', data);
+      toast({
+        title: "Server Data Deleted",
+        description: "All server data has been deleted by an administrator.",
+      });
+      // Update stats
+      loadDbStats();
+      checkPendingSyncs();
+    });
+    
     // Listen for new match events
     const matchUpdateListener = webSocketService.addListener('new_match', (data) => {
       console.log('Received new_match event:', data);
@@ -340,21 +354,45 @@ export default function DataSync() {
           syncedAt: Date.now()
         };
         
-        // Save the received match data to our database
-        import('@/lib/db').then(({ addMatchEntry }) => {
-          addMatchEntry(syncedData)
-            .then(() => {
-              console.log("Successfully saved match data from WebSocket");
-              // Update stats after adding the match
-              loadDbStats();
-              checkPendingSyncs();
-              
-              // Log success details for debugging
-              console.log(`Match data saved: Team ${syncedData.team}, Match ${syncedData.matchNumber}, ID: ${syncedData.id}`);
-            })
-            .catch(err => {
-              console.error("Error saving WebSocket match data:", err);
+        // Save the received match data to our database - need to first check if we already have it
+        import('@/lib/db').then(async ({ addMatchEntry, getFilteredMatches, updateMatchEntry }) => {
+          try {
+            // Check if we already have this match by looking for team+matchType+matchNumber
+            const existingMatches = await getFilteredMatches({
+              teamNumber: syncedData.team,
+              matchType: syncedData.matchType,
+              matchNumber: syncedData.matchNumber
             });
+            
+            if (existingMatches.length === 0) {
+              // New match, add it
+              await addMatchEntry(syncedData);
+              console.log(`Successfully added new match data from WebSocket (Team ${syncedData.team}, Match ${syncedData.matchNumber})`);
+            } else {
+              // Existing match, update it
+              const existingMatch = existingMatches[0];
+              // Only update if the new data is actually newer
+              const incomingTimestamp = syncedData.timestamp || 0;
+              const existingTimestamp = existingMatch.timestamp || 0;
+              
+              if (incomingTimestamp > existingTimestamp) {
+                await updateMatchEntry({
+                  ...syncedData,
+                  id: existingMatch.id,
+                  syncStatus: 'synced' as 'synced'
+                });
+                console.log(`Successfully updated existing match from WebSocket (Team ${syncedData.team}, Match ${syncedData.matchNumber})`);
+              } else {
+                console.log(`Skipped WebSocket update as local data is newer (Team ${syncedData.team}, Match ${syncedData.matchNumber})`);
+              }
+            }
+            
+            // Update stats after handling the match
+            loadDbStats();
+            checkPendingSyncs();
+          } catch (err) {
+            console.error("Error processing WebSocket match data:", err);
+          }
         });
       }
     });
@@ -366,6 +404,7 @@ export default function DataSync() {
     return () => {
       connectionStatusListener();
       syncCompletedListener();
+      serverDataDeletedListener();
       matchUpdateListener();
     };
   }, [toast]);
@@ -647,6 +686,74 @@ export default function DataSync() {
       toast({
         title: "Operation failed",
         description: "Failed to clear all data",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Handle server data deletion (emergency recovery option)
+  const handleClearServerData = async () => {
+    if (!isOnline) {
+      toast({
+        title: "Offline",
+        description: "You're currently offline. Please connect to the internet to manage server data.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      // First, download current server data as a backup
+      const allServerDataResponse = await apiRequest<{
+        success: boolean;
+        matches: MatchEntry[];
+        teams: any[];
+        timestamp: number;
+      }>({
+        endpoint: "/api/sync/all",
+        method: "GET"
+      });
+      
+      if (allServerDataResponse.success) {
+        // Create a backup export file
+        const backupData: ExportData = {
+          matches: allServerDataResponse.matches || [],
+          teams: allServerDataResponse.teams || [],
+          exportDate: Date.now(),
+          appVersion: "1.0.0",
+        };
+        
+        // Generate backup file
+        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+        saveAs(blob, `server_backup_before_delete_${new Date().toISOString().split('T')[0]}.json`);
+        
+        // Now delete all server data
+        const deleteResponse = await apiRequest<{
+          success: boolean;
+          message: string;
+        }>({
+          endpoint: "/api/sync/all",
+          method: "DELETE"
+        });
+        
+        if (deleteResponse.success) {
+          setShowClearServerDialog(false);
+          
+          toast({
+            title: "Server data deleted",
+            description: "All server data has been deleted. A backup was saved to your device.",
+          });
+        } else {
+          throw new Error("Failed to delete server data");
+        }
+      } else {
+        throw new Error("Failed to backup server data before deletion");
+      }
+    } catch (error) {
+      console.error("Error deleting server data:", error);
+      toast({
+        title: "Operation failed",
+        description: "Failed to delete server data. Please try again.",
         variant: "destructive",
       });
     }
@@ -958,6 +1065,13 @@ export default function DataSync() {
               >
                 Clear All Data
               </Button>
+              <Button 
+                variant="destructive"
+                onClick={() => setShowClearServerDialog(true)}
+                disabled={!isOnline}
+              >
+                Delete Server Data
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -1101,6 +1215,36 @@ export default function DataSync() {
               disabled={!scoutName.trim()}
             >
               Save Name
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Clear Server Data Dialog */}
+      <Dialog open={showClearServerDialog} onOpenChange={setShowClearServerDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete All Server Data</DialogTitle>
+            <DialogDescription>
+              ⚠️ <strong>WARNING:</strong> This will delete ALL match data from the server. This action is permanent and cannot be undone.
+              <p className="mt-2">A backup of the current server data will be downloaded to your device before deletion.</p>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-md p-3 my-2">
+            <p className="text-amber-800 dark:text-amber-200 text-sm">
+              This is an emergency recovery option. Only use this if your team is experiencing severe synchronization issues that cannot be resolved by normal means.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowClearServerDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleClearServerData}
+              disabled={!isOnline}
+            >
+              Delete & Backup Server Data
             </Button>
           </DialogFooter>
         </DialogContent>
