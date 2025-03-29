@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ExclamationTriangleIcon, InfoCircledIcon, CheckCircledIcon } from "@radix-ui/react-icons";
+import { ExclamationTriangleIcon, InfoCircledIcon } from "@radix-ui/react-icons";
 import { 
   RatingFields, 
   ConsistencyWarning, 
