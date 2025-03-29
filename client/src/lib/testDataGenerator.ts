@@ -40,9 +40,26 @@ export function randomInt(min: number, max: number): number {
 }
 
 /**
- * Generates a random team number
+ * Team database for generating data with real teams
+ */
+let existingTeams: string[] = [];
+
+/**
+ * Set existing teams from the database to use for generation
+ */
+export function setExistingTeams(teams: string[]) {
+  existingTeams = teams;
+}
+
+/**
+ * Generates a random team number from existing teams or creates a random one
  */
 export function randomTeamNumber(): string {
+  // If we have existing teams, use those
+  if (existingTeams.length > 0) {
+    return existingTeams[randomInt(0, existingTeams.length - 1)];
+  }
+  // Otherwise generate a random one
   return randomInt(MIN_TEAM_NUMBER, MAX_TEAM_NUMBER).toString();
 }
 
