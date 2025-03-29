@@ -6,18 +6,38 @@ interface TeamMascotSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   message?: string;
+  label?: string;
+  variant?: 'primary' | 'secondary';
+  speed?: 'slow' | 'default' | 'fast';
 }
 
 export default function TeamMascotSpinner({ 
   size = 'md', 
   className,
-  message 
+  message,
+  label,
+  variant = 'primary',
+  speed = 'default'
 }: TeamMascotSpinnerProps) {
   const sizeClasses = {
     sm: "h-4 w-4",
     md: "h-8 w-8",
     lg: "h-12 w-12"
   };
+  
+  const variantClasses = {
+    primary: "text-primary",
+    secondary: "text-secondary"
+  };
+  
+  const speedClasses = {
+    slow: "animate-spin-slow",
+    default: "animate-spin",
+    fast: "animate-spin-fast"
+  };
+
+  // Use label if provided, otherwise use message
+  const displayText = label || message;
 
   return (
     <div className={cn(
@@ -26,13 +46,14 @@ export default function TeamMascotSpinner({
     )}>
       <Loader2 
         className={cn(
-          "animate-spin text-primary", 
+          speedClasses[speed],
+          variantClasses[variant], 
           sizeClasses[size]
         )} 
       />
-      {message && (
+      {displayText && (
         <p className="text-sm text-muted-foreground animate-pulse">
-          {message}
+          {displayText}
         </p>
       )}
     </div>

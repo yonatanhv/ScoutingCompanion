@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TeamMascotSpinner } from "@/components/ui/team-mascot-spinner";
+import TeamMascotSpinner from "@/components/ui/team-mascot-spinner";
 import { 
   Select, 
   SelectContent, 
@@ -609,7 +609,7 @@ const AllianceBuilder = () => {
                           
                           {isPdfReady && (
                             <PDFDownloadLink
-                              document={<AllianceReportPDF alliance={alliance} teams={teams} />}
+                              document={<AllianceReportPDF alliance={alliance} teamDetails={teams.filter(team => alliance?.teams.includes(team.teamNumber))} />}
                               fileName={`alliance-${alliance.teams.join("-")}.pdf`}
                             >
                               {({ loading }) => (
@@ -634,7 +634,12 @@ const AllianceBuilder = () => {
                         </div>
                         
                         <div className="text-sm">
-                          <RecommendationEngine alliance={alliance} />
+                          <RecommendationEngine 
+                            alliance={alliance} 
+                            teams={teams} 
+                            selectedTeams={selectedTeams} 
+                            onRecommendTeam={(teamNumber) => handleTeamSelect(selectedTeams.length, teamNumber)} 
+                          />
                         </div>
                       </div>
                     </div>

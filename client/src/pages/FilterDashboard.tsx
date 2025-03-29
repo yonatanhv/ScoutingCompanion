@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TeamMascotSpinner } from "@/components/ui/team-mascot-spinner";
+import TeamMascotSpinner from "@/components/ui/team-mascot-spinner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BrainCircuit, Filter, MessageSquare } from "lucide-react";
