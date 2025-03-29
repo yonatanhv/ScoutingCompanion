@@ -29,7 +29,7 @@ export interface MatchEntry {
   comments?: string;
   
   // Metadata
-  timestamp: number;
+  timestamp: Date | number; // Can be Date from server or number from client
   
   // Cross-device sync metadata
   deviceId?: string;           // Unique identifier for the device that created this entry

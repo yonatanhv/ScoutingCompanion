@@ -1,166 +1,216 @@
 import { useState } from 'react';
+import { Database } from 'lucide-react';
 import { 
   Dialog, 
   DialogContent, 
+  DialogDescription, 
   DialogHeader, 
   DialogTitle, 
-  DialogDescription,
-  DialogFooter
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { 
-  Slider 
-} from '@/components/ui/slider';
-import { 
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { Database } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { TeamMascotSpinner } from '@/components/ui/team-mascot-spinner';
-import { generateRandomData, isValidKey } from '@/lib/testDataGenerator';
+  DialogTrigger 
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import TeamMascotSpinner from "../ui/team-mascot-spinner";
+import { generateMatchEntries } from "@/lib/testDataGenerator";
+import { addMatchEntry } from "@/lib/db";
+import type { MatchEntry } from "../../lib/types";
 
-export function TestDataGenerator() {
-  const [open, setOpen] = useState(false);
+// Secret key for accessing test data generator (to prevent accidental generation)
+const SECRET_KEY = "270773";
+
+/**
+ * TestDataGenerator component for generating test data for the app
+ * Protected by a secret key to prevent accidental data generation
+ */
+export default function TestDataGenerator() {
+  const [isOpen, setIsOpen] = useState(false);
   const [key, setKey] = useState('');
-  const [count, setCount] = useState(20);
+  const [isKeyValid, setIsKeyValid] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showValidationMessage, setShowValidationMessage] = useState(false);
+  const [dataCount, setDataCount] = useState(10);
   const { toast } = useToast();
 
-  const handleCountChange = (value: number[]) => {
-    setCount(value[0]);
+  // Validate the key
+  const validateKey = (enteredKey: string) => {
+    setKey(enteredKey);
+    setIsKeyValid(enteredKey === SECRET_KEY);
   };
 
-  const handleKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setKey(e.target.value);
-    if (showValidationMessage) {
-      setShowValidationMessage(false);
-    }
+  // Converts null to undefined for compatibility with the MatchEntry type
+  const adaptMatchEntry = (entry: any): Omit<MatchEntry, 'id'> => {
+    // Convert all null comment values to undefined
+    const adapted = { ...entry };
+    if (adapted.defenseComment === null) adapted.defenseComment = undefined;
+    if (adapted.avoidingDefenseComment === null) adapted.avoidingDefenseComment = undefined;
+    if (adapted.scoringAlgaeComment === null) adapted.scoringAlgaeComment = undefined;
+    if (adapted.scoringCoralsComment === null) adapted.scoringCoralsComment = undefined;
+    if (adapted.autonomousComment === null) adapted.autonomousComment = undefined;
+    if (adapted.drivingSkillComment === null) adapted.drivingSkillComment = undefined;
+    if (adapted.climbingComment === null) adapted.climbingComment = undefined;
+    if (adapted.comments === null) adapted.comments = undefined;
+    
+    return adapted as Omit<MatchEntry, 'id'>;
   };
 
+  // Generate random test data
   const generateData = async () => {
-    if (!isValidKey(key)) {
-      setShowValidationMessage(true);
-      return;
-    }
-
+    if (!isKeyValid) return;
+    
     setIsGenerating(true);
     try {
-      const result = await generateRandomData(key, count);
+      // Generate random match entries
+      const entries = generateMatchEntries(dataCount);
       
-      if (result.success) {
-        toast({
-          title: 'Test Data Generated',
-          description: result.message,
-          variant: 'default',
-        });
-        setOpen(false);
-      } else {
-        toast({
-          title: 'Error',
-          description: result.message,
-          variant: 'destructive',
-        });
+      // Add each entry to the database
+      let successCount = 0;
+      for (const entry of entries) {
+        try {
+          // Adapt entry to match expected MatchEntry type (null → undefined for comments)
+          await addMatchEntry(adaptMatchEntry(entry));
+          successCount++;
+        } catch (error) {
+          console.error("Error adding match entry:", error);
+        }
       }
-    } catch (error) {
+      
       toast({
-        title: 'Error',
-        description: `Failed to generate data: ${error instanceof Error ? error.message : String(error)}`,
-        variant: 'destructive',
+        title: "Test Data Generated",
+        description: `Successfully generated ${successCount} match entries.`,
+      });
+    } catch (error) {
+      console.error("Error generating test data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate test data. Check console for details.",
+        variant: "destructive",
       });
     } finally {
       setIsGenerating(false);
+      setIsOpen(false);
     }
   };
 
   return (
     <>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              className="fixed bottom-4 right-4 rounded-full shadow-md bg-background hover:bg-primary hover:text-primary-foreground"
-              onClick={() => setOpen(true)}
-            >
-              <Database className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Generate Test Data</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
+          <Button
+            variant="outline"
+            size="icon"
+            className="fixed bottom-4 right-4 rounded-full h-10 w-10 shadow-md"
+            onClick={() => setIsOpen(true)}
+          >
+            <Database className="h-4 w-4" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Generate Test Data</DialogTitle>
+            <DialogTitle>Test Data Generator</DialogTitle>
             <DialogDescription>
-              Generate random match entries for testing purposes.
-              This requires a secret key to prevent accidental data generation.
+              Generate random match data for testing purposes.
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="grid gap-4 py-3">
-            <div className="grid gap-2">
-              <Label htmlFor="key">Secret Key</Label>
-              <Input
-                id="key"
-                type="password"
-                placeholder="Enter secret key"
-                value={key}
-                onChange={handleKeyChange}
-                className={showValidationMessage ? 'border-destructive' : ''}
-              />
-              {showValidationMessage && (
-                <p className="text-sm text-destructive">Invalid key. Access denied.</p>
-              )}
-            </div>
-            
-            <div className="grid gap-2">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="count">Number of Entries</Label>
-                <span className="text-sm text-muted-foreground">{count}</span>
+
+          {!isKeyValid ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="secretKey">Enter Secret Key</Label>
+                <Input
+                  id="secretKey"
+                  type="password"
+                  value={key}
+                  onChange={(e) => validateKey(e.target.value)}
+                  placeholder="Enter access key"
+                />
               </div>
-              <Slider
-                id="count"
-                min={5}
-                max={100}
-                step={5}
-                value={[count]}
-                onValueChange={handleCountChange}
-              />
+              <div className="text-xs text-muted-foreground">
+                This tool is for development and testing only. 
+                Please enter the secret key to continue.
+              </div>
             </div>
-          </div>
-          
-          <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between sm:space-x-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={generateData} disabled={isGenerating} className="relative">
-              {isGenerating ? (
-                <>
-                  <span className="opacity-0">Generate</span>
-                  <span className="absolute inset-0 flex items-center justify-center">
-                    <TeamMascotSpinner size="sm" />
-                  </span>
-                </>
-              ) : (
-                'Generate'
-              )}
-            </Button>
-          </DialogFooter>
+          ) : (
+            <Tabs defaultValue="basic">
+              <TabsList className="grid grid-cols-2">
+                <TabsTrigger value="basic">Basic</TabsTrigger>
+                <TabsTrigger value="advanced">Advanced</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="basic" className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Label htmlFor="dataCount">Number of Entries: {dataCount}</Label>
+                  </div>
+                  <Slider
+                    id="dataCount"
+                    min={1}
+                    max={50}
+                    step={1}
+                    value={[dataCount]}
+                    onValueChange={(value) => setDataCount(value[0])}
+                  />
+                </div>
+                
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsOpen(false)}
+                    disabled={isGenerating}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={generateData}
+                    disabled={isGenerating}
+                  >
+                    {isGenerating ? (
+                      <TeamMascotSpinner size="sm" />
+                    ) : (
+                      "Generate Data"
+                    )}
+                  </Button>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="advanced" className="space-y-4">
+                <div className="text-sm">
+                  The advanced generator creates realistic data following the REEFSCAPE game rules:
+                  <ul className="list-disc pl-5 text-xs mt-2 space-y-1 text-muted-foreground">
+                    <li>Ratings follow realistic distributions</li>
+                    <li>CORAL and ALGAE scoring metrics</li>
+                    <li>CAGE climbing levels (None, Park, Shallow, Deep)</li>
+                    <li>Team-specific performance consistency</li>
+                    <li>Appropriate comments reflecting performance</li>
+                  </ul>
+                </div>
+                
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsOpen(false)}
+                    disabled={isGenerating}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={generateData}
+                    disabled={isGenerating}
+                  >
+                    {isGenerating ? (
+                      <TeamMascotSpinner size="sm" />
+                    ) : (
+                      "Generate Advanced Data"
+                    )}
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
+          )}
         </DialogContent>
       </Dialog>
     </>
   );
 }
-
-export default TestDataGenerator;

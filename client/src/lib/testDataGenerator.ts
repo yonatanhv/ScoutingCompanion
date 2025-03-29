@@ -1,306 +1,323 @@
 /**
- * Test Data Generator
- * This module provides utilities to generate random testing data
- * Only accessible with a secret key for development purposes
+ * Test Data Generator for FRC Scouting App
+ * Generates realistic random scouting data for the REEFSCAPE game
  */
 
-import { addMatchEntry } from './db';
-import type { MatchEntry } from './types';
+import { type MatchEntry } from '@shared/schema';
 
-// Secret key for accessing test data generation - hardcoded for simplicity
-// In a real application, this would be stored securely
-const SECRET_KEY = '270773';
+// FRC Team number range for random team selection
+const MIN_TEAM_NUMBER = 1;
+const MAX_TEAM_NUMBER = 9999;
 
-// Sample team data
-const FRC_TEAMS = [
-  { number: '254', name: 'The Cheesy Poofs' },
-  { number: '1114', name: 'Simbotics' },
-  { number: '118', name: 'Robonauts' },
-  { number: '2056', name: 'OP Robotics' },
-  { number: '1678', name: 'Citrus Circuits' },
-  { number: '33', name: 'Killer Bees' },
-  { number: '195', name: 'CyberKnights' },
-  { number: '3310', name: 'Black Hawk Robotics' },
-  { number: '148', name: 'Robowranglers' },
-  { number: '5406', name: 'Celt-X' },
-  { number: '971', name: 'Spartan Robotics' },
-  { number: '973', name: 'Greybots' },
-  { number: '610', name: 'Crescent Coyotes' },
-  { number: '1538', name: 'The Holy Cows' },
-  { number: '2767', name: 'Stryke Force' },
-  { number: '4613', name: 'Barker Redbacks' },
-  { number: '5895', name: 'Peddie School Robotics' },
-  { number: '7457', name: 'suPURDUEper Robotics' },
-  { number: '3707', name: 'Brighton TechnoDogs' },
-  { number: '4613', name: 'Barker Redbacks' },
-  { number: '1323', name: 'MadTown Robotics' },
-  { number: '225', name: 'TechFire' },
-  { number: '3539', name: 'Byting Bulldogs' },
-  { number: '3132', name: 'Thunder Down Under' },
-  { number: '125', name: 'NUTRONs' },
-];
+// Match types available
+const MATCH_TYPES = ['practice', 'qualification', 'playoff'];
+
+// Alliance options
+const ALLIANCES = ['red', 'blue'];
+
+// Climbing options
+const CLIMBING_OPTIONS = ['none', 'park', 'shallow', 'deep'];
+
+// Sample team names for a more realistic experience
+const SAMPLE_TEAM_NAMES: Record<string, string> = {
+  '254': 'Cheesy Poofs',
+  '1114': 'Simbotics',
+  '118': 'Robonauts',
+  '2056': 'OP Robotics',
+  '1678': 'Citrus Circuits',
+  '1323': 'MadTown Robotics',
+  '195': 'CyberKnights',
+  '3310': 'Black Hawk Robotics',
+  '2767': 'Stryke Force',
+  '971': 'Spartan Robotics'
+};
 
 /**
- * Generate a random number between min and max (inclusive)
+ * Generates a random integer within a range (inclusive)
  */
-function getRandomInt(min: number, max: number): number {
+export function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 /**
- * Generate a random team from the FRC_TEAMS list
+ * Generates a random team number
  */
-function getRandomTeam() {
-  return FRC_TEAMS[Math.floor(Math.random() * FRC_TEAMS.length)];
+export function randomTeamNumber(): string {
+  return randomInt(MIN_TEAM_NUMBER, MAX_TEAM_NUMBER).toString();
 }
 
 /**
- * Generate a random alliance color
+ * Returns a predefined team name or a generic one
  */
-function getRandomAlliance(): 'red' | 'blue' {
-  return Math.random() > 0.5 ? 'red' : 'blue';
+export function getTeamName(teamNumber: string): string {
+  return SAMPLE_TEAM_NAMES[teamNumber] || `Team ${teamNumber}`;
 }
 
 /**
- * Generate a random match type
+ * Generates a random rating between 1-7 with a normal distribution bias
+ * Uses the Box-Muller transform to generate more realistic ratings
+ * centering around a given mean with a normal distribution
  */
-function getRandomMatchType(): string {
-  const types = ['Practice', 'Qualification', 'Quarterfinal', 'Semifinal', 'Final'];
-  return types[Math.floor(Math.random() * types.length)];
-}
-
-/**
- * Generate a random climbing position
- */
-function getRandomClimbing(): string {
-  const positions = ['None', 'Park', 'Shallow', 'Deep', 'No Data'];
-  return positions[Math.floor(Math.random() * positions.length)];
-}
-
-/**
- * Generate a random comment for a specific category
- */
-function generateComment(category: string, score: number): string {
-  const comments = {
-    'coral': [
-      'Consistent and efficient in coral placement',
-      'Struggle with coral placement accuracy',
-      'Fast but sometimes careless with coral',
-      'Excellent coral stacking strategy',
-      'Prioritizes lower level reef positions',
-      'Focuses on high reef scoring',
-      'Great vision system for coral identification',
-      'Very deliberate and slow coral placement',
-      'Excellent coral acquisition',
-      'Limited coral storage capacity',
-    ],
-    'algae': [
-      'Rapid algae collection and scoring',
-      'Inefficient algae scoring mechanism',
-      'Great algae targeting into processor',
-      'Struggles with algae acquisition',
-      'Strategic with algae timing',
-      'Seems to ignore algae opportunities',
-      'Excellent endgame algae dump into net',
-      'Issues with algae jamming',
-      'Balanced focus on both scoring elements',
-      'Misses most algae throws',
-    ],
-    'defense': [
-      'Effectively blocks opponent paths',
-      'No defensive capability observed',
-      'Aggressively pins opponents',
-      'Good defense without fouls',
-      'Focuses on defense during endgame',
-      'Not built for defensive play',
-      'Excellent positional defense',
-      'Gets too aggressive, causing penalties',
-      'Tactical defense but maintains distance',
-      'Poor defensive positioning',
-    ],
-    'driving': [
-      'Exceptional driver awareness',
-      'Hesitant driving, especially in traffic',
-      'Fast and fluid movement across field',
-      'Seems to have control issues',
-      'Precise and calculated driving',
-      'Aggressive but controlled driving',
-      'Struggles with field obstacles',
-      'Avoids contact even when beneficial',
-      'Slow but steady control',
-      'Excellent maneuverability in tight spaces',
-    ],
-    'autonomous': [
-      'Reliable autonomous scoring',
-      'Inconsistent path execution',
-      'Multiple scoring actions in auto',
-      'Basic mobility only',
-      'Advanced pathing with object detection',
-      'Sometimes misses starting configuration',
-      'Adapts to alliance partner movements',
-      'No autonomous capability observed',
-      'Occasionally interferes with partners',
-      'Perfect execution of complex routine',
-    ],
-  };
-
-  const categoryComments = comments[category as keyof typeof comments] || [];
-  if (categoryComments.length === 0) return '';
-
-  // Select comment based on score and random factor
-  const index = Math.min(
-    Math.floor((score / 10) * categoryComments.length + getRandomInt(-1, 1)),
-    categoryComments.length - 1
-  );
-  return categoryComments[Math.max(0, index)];
-}
-
-/**
- * Generate climbing-specific comments
- */
-function generateClimbingComment(climbing: string): string {
-  const comments: Record<string, string[]> = {
-    'None': [
-      'Did not attempt to climb',
-      'Failed climb attempt',
-      'Focused on scoring instead of climbing',
-      'Climbing mechanism appeared damaged',
-      'Ran out of time for climb',
-    ],
-    'Park': [
-      'Quick park for safe points',
-      'Last second park',
-      'Parked after failed climb attempt',
-      'Strategic decision to park only',
-      'Parked to avoid defense',
-    ],
-    'Shallow': [
-      'Clean shallow climb',
-      'Fast shallow climb',
-      'Consistent shallow climber',
-      'Attempted deep but settled for shallow',
-      'Reliable shallow climbing mechanism',
-    ],
-    'Deep': [
-      'Impressive deep climb',
-      'Very fast deep climb capability',
-      'Consistent deep climber',
-      'Specialized for deep climbing',
-      'Stable deep climbing mechanism',
-    ],
-    'No Data': [
-      'Unable to observe climbing attempt',
-      'View blocked during endgame',
-      'Not present during endgame',
-      'Disconnected before endgame',
-      'No data captured for climbing',
-    ],
-  };
-
-  const options = comments[climbing] || comments['No Data'];
-  return options[Math.floor(Math.random() * options.length)];
-}
-
-/**
- * Generate a random match entry
- */
-function generateMatchEntry(): Omit<MatchEntry, 'id'> {
-  const team = getRandomTeam();
-  const alliance = getRandomAlliance();
-  const matchType = getRandomMatchType();
-  const climbing = getRandomClimbing();
+export function randomRating(mean: number = 4, stdDev: number = 1.5): number {
+  // Box-Muller transform
+  const u1 = Math.random();
+  const u2 = Math.random();
+  const z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
   
-  // Generate random scores (1-7 scale)
-  const defense = getRandomInt(1, 7);
-  const avoidingDefense = getRandomInt(1, 7);
-  const scoringAlgae = getRandomInt(1, 7);
-  const scoringCorals = getRandomInt(1, 7);
-  const autonomous = getRandomInt(1, 7);
-  const drivingSkill = getRandomInt(1, 7);
-  const overall = getRandomInt(
-    Math.max(1, Math.floor((defense + avoidingDefense + scoringAlgae + scoringCorals + autonomous + drivingSkill) / 6) - 1),
-    Math.min(7, Math.ceil((defense + avoidingDefense + scoringAlgae + scoringCorals + autonomous + drivingSkill) / 6) + 1)
-  );
+  // Scale and shift to get desired mean and standard deviation
+  let rating = Math.round(z0 * stdDev + mean);
+  
+  // Ensure result is within 1-7 range
+  rating = Math.max(1, Math.min(7, rating));
+  return rating;
+}
 
-  const matchNumber = getRandomInt(1, 100);
-  const timestamp = Date.now() - getRandomInt(0, 7 * 24 * 60 * 60 * 1000); // Random time in the last week
+/**
+ * Generates a random comment for a given category and rating
+ * Returns undefined for use in the codebase, but the actual type may need to be
+ * converted at the interface boundary depending on what the backend expects
+ */
+export function generateComment(category: string, rating: number): string | null {
+  // Only generate comments ~40% of the time
+  if (Math.random() > 0.4) return null;
+  
+  // Rating categories
+  const lowRatings = [
+    'Needs significant improvement',
+    'Struggling with consistency',
+    'Below average performance',
+    'Not effective in matches'
+  ];
+  
+  const mediumRatings = [
+    'Average performance',
+    'Some good moments',
+    'Improving throughout matches',
+    'Consistent but not outstanding'
+  ];
+  
+  const highRatings = [
+    'Excellent performance',
+    'Very consistent and reliable',
+    'Outstanding strategy and execution',
+    'One of the best teams in this area'
+  ];
+  
+  // Category-specific phrases
+  const categoryPhrases: Record<string, string[]> = {
+    defense: [
+      'blocks access to REEF',
+      'disrupts ALGAE collection',
+      'can control center of field',
+      'uses wedge design effectively',
+      'pins opponents against walls'
+    ],
+    avoidingDefense: [
+      'maneuvers around defenders',
+      'uses speed to avoid contact',
+      'changes direction quickly',
+      'finds gaps in defensive formations',
+      'maintains distance from defensive bots'
+    ],
+    scoringAlgae: [
+      'accurate ALGAE shooting',
+      'consistent PROCESSOR deposits',
+      'effective NET throws',
+      'collects ALGAE quickly',
+      'can shoot from distance'
+    ],
+    scoringCorals: [
+      'places CORAL on all REEF levels',
+      'quick CORAL placement',
+      'handles multiple CORAL pieces',
+      'careful with CORAL placement rules',
+      'strategic about REEF selection'
+    ],
+    autonomous: [
+      'reliable auto routines',
+      'scores multiple game pieces',
+      'navigates field obstacles',
+      'consistent starting position',
+      'adaptive pathfinding'
+    ],
+    drivingSkill: [
+      'precise control',
+      'smooth movements',
+      'aggressive when needed',
+      'cautious in traffic',
+      'good field awareness'
+    ],
+    climbing: [
+      'quick to position for climbing',
+      'reliable CAGE mechanism',
+      'can adjust position on BARGE',
+      'maintains balance during climb',
+      'manages time for endgame'
+    ],
+    overall: [
+      'good team coordination',
+      'effective communication',
+      'strategic gameplay',
+      'adaptable to different alliances',
+      'reliable in high-pressure situations'
+    ]
+  };
+  
+  // Select appropriate rating pool
+  let ratingPool: string[];
+  if (rating <= 3) {
+    ratingPool = lowRatings;
+  } else if (rating <= 5) {
+    ratingPool = mediumRatings;
+  } else {
+    ratingPool = highRatings;
+  }
+  
+  // Get category-specific phrases or use generic ones
+  const phrasesPool = categoryPhrases[category] || [
+    'performance was notable',
+    'showed good strategy',
+    'technical skills were evident',
+    'game awareness was apparent'
+  ];
+  
+  // Construct comment
+  const ratingComment = ratingPool[randomInt(0, ratingPool.length - 1)];
+  const phraseComment = phrasesPool[randomInt(0, phrasesPool.length - 1)];
+  
+  return `${ratingComment}. ${phraseComment}.`;
+}
 
+/**
+ * Generates a random climbing status
+ * Weighted to make deeper climbs less common
+ */
+export function randomClimbing(): string {
+  const rand = Math.random();
+  if (rand < 0.3) return 'none';
+  if (rand < 0.5) return 'park';
+  if (rand < 0.8) return 'shallow';
+  return 'deep';
+}
+
+/**
+ * Generates a match entry with random data
+ */
+export function generateMatchEntry(userId?: number): Omit<MatchEntry, 'id'> {
+  // Generate random performance ratings (with slight team bias for consistency)
+  const teamBias = randomInt(-1, 1); // Team bias affects all ratings slightly
+  
+  // Generate core fields
+  const teamNumber = randomTeamNumber();
+  const defense = randomRating(4 + teamBias);
+  const avoidingDefense = randomRating(4 + teamBias);
+  const scoringAlgae = randomRating(4 + teamBias);
+  const scoringCorals = randomRating(4 + teamBias);
+  const autonomous = randomRating(4 + teamBias);
+  const drivingSkill = randomRating(4 + teamBias);
+  const climbing = randomClimbing();
+  
+  // Overall rating is influenced by other ratings
+  const overallBase = (
+    defense + 
+    avoidingDefense + 
+    scoringAlgae + 
+    scoringCorals + 
+    autonomous + 
+    drivingSkill
+  ) / 6;
+  
+  // Climbing bonus
+  const climbingBonus = 
+    climbing === 'deep' ? 1 : 
+    climbing === 'shallow' ? 0.5 : 
+    climbing === 'park' ? 0.2 : 0;
+  
+  // Calculate overall with some randomness
+  let overall = Math.round(overallBase + climbingBonus + randomInt(-1, 1));
+  overall = Math.max(1, Math.min(7, overall));
+  
+  // Create the match entry with required timestamp
   return {
-    team: team.number,
-    matchType,
-    matchNumber,
-    alliance,
+    team: teamNumber,
+    matchType: MATCH_TYPES[randomInt(0, MATCH_TYPES.length - 1)],
+    matchNumber: randomInt(1, 100),
+    alliance: ALLIANCES[randomInt(0, 1)],
     
-    // Performance ratings
+    // Ratings
     defense,
-    defenseComment: generateComment('defense', defense * 10/7),
+    defenseComment: generateComment('defense', defense),
     avoidingDefense,
-    avoidingDefenseComment: generateComment('defense', avoidingDefense * 10/7),
+    avoidingDefenseComment: generateComment('avoidingDefense', avoidingDefense),
     scoringAlgae,
-    scoringAlgaeComment: generateComment('algae', scoringAlgae * 10/7),
+    scoringAlgaeComment: generateComment('scoringAlgae', scoringAlgae),
     scoringCorals,
-    scoringCoralsComment: generateComment('coral', scoringCorals * 10/7),
+    scoringCoralsComment: generateComment('scoringCorals', scoringCorals),
     autonomous,
-    autonomousComment: generateComment('autonomous', autonomous * 10/7),
+    autonomousComment: generateComment('autonomous', autonomous),
     drivingSkill,
-    drivingSkillComment: generateComment('driving', drivingSkill * 10/7),
+    drivingSkillComment: generateComment('drivingSkill', drivingSkill),
     
     // Climbing
     climbing,
-    climbingComment: generateClimbingComment(climbing),
+    climbingComment: generateComment('climbing', climbing === 'deep' ? 7 : climbing === 'shallow' ? 5 : climbing === 'park' ? 3 : 1),
     
     // Overall impression
     overall,
-    comments: `Overall: ${overall}/7. ${generateComment('coral', scoringCorals * 10/7)} ${generateComment('algae', scoringAlgae * 10/7)}`,
+    comments: generateComment('overall', overall),
     
-    // Metadata
-    timestamp,
-    syncStatus: Math.random() > 0.7 ? 'pending' : 'synced',
+    // Required metadata
+    timestamp: new Date(Date.now()) as unknown as Date, // Convert epoch timestamp to Date for schema compatibility
+    syncStatus: 'pending' as 'pending' | 'synced' | 'failed',
+    userId: userId !== undefined ? userId : null,
+    
+    // Optional scout information
+    scoutedBy: "TestGenerator"
   };
 }
 
 /**
- * Generate and store a specified number of random match entries
+ * Generates multiple match entries
  */
-export async function generateRandomData(
-  key: string,
-  count: number = 20
-): Promise<{ success: boolean; message: string }> {
-  if (!isValidKey(key)) {
-    return {
-      success: false,
-      message: 'Invalid key. Access denied.',
-    };
+export function generateMatchEntries(count: number, userId?: number): Array<Omit<MatchEntry, 'id'>> {
+  const entries: Array<Omit<MatchEntry, 'id'>> = [];
+  
+  for (let i = 0; i < count; i++) {
+    entries.push(generateMatchEntry(userId));
   }
-
-  try {
-    const entries: number[] = [];
-    const teams = new Set<string>();
-
-    // Generate and store match entries
-    for (let i = 0; i < count; i++) {
-      const entry = generateMatchEntry();
-      const id = await addMatchEntry(entry);
-      entries.push(id);
-      teams.add(entry.team);
-    }
-
-    return {
-      success: true,
-      message: `Successfully generated ${count} match entries across ${Array.from(teams).length} teams.`,
-    };
-  } catch (error) {
-    console.error('Error generating test data:', error);
-    return {
-      success: false,
-      message: `Failed to generate data: ${error instanceof Error ? error.message : String(error)}`,
-    };
-  }
+  
+  return entries;
 }
 
 /**
- * Check if the provided key is valid
+ * Generates a set of entries for specific teams to ensure they have data
  */
-export function isValidKey(key: string): boolean {
-  return key === SECRET_KEY;
+export function generateEntriesForTeams(teamNumbers: string[], entriesPerTeam: number = 3, userId?: number): Array<Omit<MatchEntry, 'id'>> {
+  const entries: Array<Omit<MatchEntry, 'id'>> = [];
+  
+  for (const teamNumber of teamNumbers) {
+    for (let i = 0; i < entriesPerTeam; i++) {
+      const entry = generateMatchEntry(userId);
+      entry.team = teamNumber;
+      entries.push(entry);
+    }
+  }
+  
+  return entries;
+}
+
+/**
+ * Generates a balanced dataset with a mix of random teams and specified teams
+ */
+export function generateBalancedDataset(count: number, includedTeams: string[] = []): Array<Omit<MatchEntry, 'id'>> {
+  // Generate data for specific teams first
+  const specificTeamEntries = includedTeams.length > 0 
+    ? generateEntriesForTeams(includedTeams, 3)
+    : [];
+  
+  // Fill the rest with random entries
+  const remainingCount = Math.max(0, count - specificTeamEntries.length);
+  const randomEntries = generateMatchEntries(remainingCount);
+  
+  return [...specificTeamEntries, ...randomEntries];
 }

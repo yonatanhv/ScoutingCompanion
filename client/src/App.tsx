@@ -12,7 +12,7 @@ import FilterDashboard from "@/pages/FilterDashboard";
 import NotFound from "@/pages/not-found";
 import { useToast } from "@/hooks/use-toast";
 import { BackgroundParticles } from "@/components/ui/background-particles";
-import { TestDataGenerator } from "@/components/dev/TestDataGenerator";
+import TestDataGenerator from "@/components/dev/TestDataGenerator";
 
 function Router() {
   const [location, setLocation] = useLocation();
