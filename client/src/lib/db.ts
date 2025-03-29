@@ -345,6 +345,11 @@ export async function getAllTeams(): Promise<TeamStatistics[]> {
   return db.getAll('teams');
 }
 
+// Save team statistics directly (useful for initializing new teams)
+export async function saveTeamStatistics(team: TeamStatistics): Promise<void> {
+  await db.put('teams', team);
+}
+
 // Update team statistics
 export async function updateTeamStatistics(teamNumber: string): Promise<void> {
   const matches = await getTeamMatches(teamNumber);

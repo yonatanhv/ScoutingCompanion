@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Database, List, BarChart } from 'lucide-react';
+import { Database, List, BarChart, Plus, Users } from 'lucide-react';
 import { 
   Dialog, 
   DialogContent, 
@@ -17,8 +17,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import TeamMascotSpinner from "../ui/team-mascot-spinner";
-import { generateMatchEntries, setExistingTeams } from "@/lib/testDataGenerator";
-import { addMatchEntry, getAllTeams } from "@/lib/db";
+import { 
+  generateMatchEntries, 
+  setExistingTeams, 
+  getSampleTeams,
+  generateDefaultTeamStatistics
+} from "@/lib/testDataGenerator";
+import { addMatchEntry, getAllTeams, saveTeamStatistics } from "@/lib/db";
 import type { MatchEntry } from "../../lib/types";
 import type { TeamStatistics } from "@shared/schema";
 
@@ -97,6 +102,46 @@ export default function TestDataGenerator() {
     if (adapted.comments === null) adapted.comments = undefined;
     
     return adapted as Omit<MatchEntry, 'id'>;
+  };
+
+  // Generate sample teams
+  const generateSampleTeams = async () => {
+    if (!isKeyValid) return;
+    
+    setIsGenerating(true);
+    try {
+      // Get the list of sample teams
+      const sampleTeams = getSampleTeams();
+      
+      // Add each team to the database
+      let successCount = 0;
+      for (const team of sampleTeams) {
+        try {
+          const teamStats = generateDefaultTeamStatistics(team.teamNumber, team.teamName);
+          await saveTeamStatistics(teamStats);
+          successCount++;
+        } catch (error) {
+          console.error("Error adding team:", error);
+        }
+      }
+      
+      toast({
+        title: "Sample Teams Generated",
+        description: `Successfully added ${successCount} sample teams.`,
+      });
+      
+      // Refresh the teams list
+      await fetchTeams();
+    } catch (error) {
+      console.error("Error generating sample teams:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate sample teams. Check console for details.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   // Generate random test data
@@ -280,8 +325,25 @@ export default function TestDataGenerator() {
                 </div>
                 
                 {useExistingTeams && (
-                  <div className="text-xs text-muted-foreground">
-                    Using {teamsList.length} teams from the database for data generation.
+                  <div className="space-y-2">
+                    <div className="text-xs text-muted-foreground">
+                      {teamsList.length > 0 
+                        ? `Using ${teamsList.length} teams from the database for data generation.`
+                        : "No teams found in the database. Generate sample teams first."}
+                    </div>
+                    
+                    {teamsList.length === 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex items-center gap-1 text-xs"
+                        onClick={() => generateSampleTeams()}
+                        disabled={isGenerating}
+                      >
+                        <Users className="h-3 w-3" />
+                        Generate Sample Teams
+                      </Button>
+                    )}
                   </div>
                 )}
                 

@@ -29,7 +29,17 @@ const SAMPLE_TEAM_NAMES: Record<string, string> = {
   '195': 'CyberKnights',
   '3310': 'Black Hawk Robotics',
   '2767': 'Stryke Force',
-  '971': 'Spartan Robotics'
+  '971': 'Spartan Robotics',
+  '33': 'Killer Bees',
+  '225': 'TechFire',
+  '330': 'Beach Bots',
+  '359': 'Hawaiian Kids',
+  '2468': 'Team Appreciate',
+  '2481': 'Roboteers',
+  '2910': 'Jack in the Bot',
+  '3538': 'RoboJackets',
+  '4481': 'Team Rembrandts',
+  '5499': 'The Bay Orangutans'
 };
 
 /**
@@ -337,4 +347,45 @@ export function generateBalancedDataset(count: number, includedTeams: string[] =
   const randomEntries = generateMatchEntries(remainingCount);
   
   return [...specificTeamEntries, ...randomEntries];
+}
+
+/**
+ * Get the list of sample team numbers and names from our predefined set
+ * @returns Array of team number and name pairs
+ */
+export function getSampleTeams(): Array<{teamNumber: string, teamName: string}> {
+  return Object.entries(SAMPLE_TEAM_NAMES).map(([teamNumber, teamName]) => ({
+    teamNumber,
+    teamName
+  }));
+}
+
+/**
+ * Generate team statistics object with default values
+ * @param teamNumber The team number
+ * @param teamName The team name
+ * @returns A team statistics object with default values
+ */
+export function generateDefaultTeamStatistics(teamNumber: string, teamName: string) {
+  return {
+    teamNumber,
+    teamName,
+    matchCount: 0,
+    averages: {
+      defense: 0,
+      avoidingDefense: 0,
+      scoringAlgae: 0,
+      scoringCorals: 0,
+      autonomous: 0,
+      drivingSkill: 0,
+      overall: 0
+    },
+    climbingStats: {
+      noData: 0,
+      none: 0,
+      park: 0,
+      shallow: 0,
+      deep: 0
+    }
+  };
 }
