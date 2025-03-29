@@ -268,11 +268,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // and receive latest data from server
   app.post("/api/sync", async (req, res) => {
     try {
-      const { matches } = req.body;
+      const { matches, forceSync = false } = req.body;
       
       if (!Array.isArray(matches)) {
         return res.status(400).json({ error: "Invalid sync data" });
       }
+      
+      // Log sync details
+      console.log(`API /sync received ${matches.length} matches. Force sync: ${forceSync ? 'Yes' : 'No'}`);
       
       const syncResults = {
         success: true,
@@ -287,6 +290,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const { id, ...matchData } = match;
           
+          // Add safeParse validation to ensure data matches schema
           const parsed = insertMatchEntrySchema.safeParse(matchData);
           if (!parsed.success) {
             syncResults.errors.push(`Invalid match data for ID ${id}: ${parsed.error}`);
@@ -307,17 +311,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
             );
           
           if (existingMatch) {
-            // Update existing match
-            await db.update(matchEntries)
-              .set({ ...parsed.data, syncStatus: "synced" })
-              .where(eq(matchEntries.id, existingMatch.id));
+            // If forceSync is true, always update
+            // Otherwise, only update if current match timestamp is newer or if sync status is not "synced"
+            const shouldUpdate = forceSync || 
+              !existingMatch.timestamp || 
+              (matchData.timestamp && new Date(matchData.timestamp) > new Date(existingMatch.timestamp)) ||
+              existingMatch.syncStatus !== "synced";
+            
+            if (shouldUpdate) {
+              console.log(`Updating existing match: Team ${matchData.team}, Type ${matchData.matchType}, Number ${matchData.matchNumber}`);
+              await db.update(matchEntries)
+                .set({ ...parsed.data, syncStatus: "synced" })
+                .where(eq(matchEntries.id, existingMatch.id));
+              
+              syncResults.syncedMatches++;
+            } else {
+              console.log(`Skipping update for match: Team ${matchData.team}, Type ${matchData.matchType}, Number ${matchData.matchNumber} - server data is newer`);
+            }
           } else {
             // Insert new match
+            console.log(`Inserting new match: Team ${matchData.team}, Type ${matchData.matchType}, Number ${matchData.matchNumber}`);
             await db.insert(matchEntries)
               .values({ ...parsed.data, syncStatus: "synced" });
+            
+            syncResults.syncedMatches++;
           }
-          
-          syncResults.syncedMatches++;
         } catch (error) {
           console.error("Error syncing match:", error);
           syncResults.errors.push(`Error syncing match: ${error}`);
@@ -329,8 +347,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const uniqueTeams = new Set(matches.map(match => match.team));
       // Convert Set to Array to avoid iteration issues
       const uniqueTeamsArray = Array.from(uniqueTeams);
+      
+      console.log(`Updating team statistics for ${uniqueTeamsArray.length} teams: ${uniqueTeamsArray.join(', ')}`);
+      
       for (const team of uniqueTeamsArray) {
-        await updateTeamStatistics(team);
+        try {
+          await updateTeamStatistics(team);
+        } catch (error) {
+          console.error(`Error updating team statistics for ${team}:`, error);
+          syncResults.errors.push(`Error updating team statistics for ${team}: ${error}`);
+        }
       }
       
       // Fetch all match data from server to send back to client
@@ -338,17 +364,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get all match entries from the database
         const serverMatchEntries = await db.select().from(matchEntries);
         syncResults.serverMatches = serverMatchEntries;
+        
+        console.log(`Sending ${serverMatchEntries.length} server matches back to client`);
       } catch (error) {
         console.error("Error fetching server matches:", error);
         syncResults.errors.push(`Error fetching server matches: ${error}`);
       }
       
       // After successful sync, notify all connected clients
-      broadcastToAll({
+      const syncMessage = {
         type: 'sync_completed',
         teams: Array.from(uniqueTeams),
-        timestamp: Date.now()
-      });
+        timestamp: Date.now(),
+        forceSync: forceSync
+      };
+      
+      console.log(`Broadcasting sync_completed message to ${clients.size} connected clients`);
+      broadcastToAll(syncMessage);
       
       res.json(syncResults);
     } catch (error) {
@@ -654,11 +686,13 @@ async function updateTeamStatistics(teamNumber: string): Promise<void> {
       overall: 0,
     };
     
+    // Initialize climbing counts using names from schema
     const climbingCounts = {
+      noData: 0,
       none: 0,
-      low: 0,
-      mid: 0,
-      high: 0,
+      park: 0,
+      shallow: 0,
+      deep: 0,
     };
     
     for (const match of matches) {
@@ -670,10 +704,12 @@ async function updateTeamStatistics(teamNumber: string): Promise<void> {
       totals.drivingSkill += match.drivingSkill;
       totals.overall += match.overall;
       
+      // Match climbing values to our schema
       if (match.climbing === "none") climbingCounts.none++;
-      else if (match.climbing === "low") climbingCounts.low++;
-      else if (match.climbing === "mid") climbingCounts.mid++;
-      else if (match.climbing === "high") climbingCounts.high++;
+      else if (match.climbing === "park") climbingCounts.park++;
+      else if (match.climbing === "shallow") climbingCounts.shallow++;
+      else if (match.climbing === "deep") climbingCounts.deep++;
+      else climbingCounts.noData++; // For any other values
     }
     
     // Check if team statistics already exist
@@ -695,10 +731,12 @@ async function updateTeamStatistics(teamNumber: string): Promise<void> {
       avgAutonomous: totals.autonomous / matchCount,
       avgDrivingSkill: totals.drivingSkill / matchCount,
       avgOverall: totals.overall / matchCount,
+      // Match field names with our schema
+      climbingNoData: climbingCounts.noData,
       climbingNone: climbingCounts.none,
-      climbingLow: climbingCounts.low,
-      climbingMid: climbingCounts.mid,
-      climbingHigh: climbingCounts.high,
+      climbingPark: climbingCounts.park,
+      climbingShallow: climbingCounts.shallow,
+      climbingDeep: climbingCounts.deep,
       lastUpdated: new Date(),
     };
     

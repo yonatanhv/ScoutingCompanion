@@ -100,6 +100,177 @@ export default function DataSync() {
   };
 
   // Handle server sync
+  // Function to force sync all data (not just pending)
+  const handleForceFullSync = async () => {
+    if (!isOnline) {
+      toast({
+        title: "Offline",
+        description: "You're currently offline. Please connect to the internet to sync with server.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsSyncing(true);
+    
+    try {
+      // Get all match entries
+      const localData = await exportAllData();
+      
+      // Get all matches, regardless of sync status
+      const allMatches = localData.matches;
+      
+      console.log(`Forcing full sync of ALL ${allMatches.length} local matches to server`);
+      
+      if (allMatches.length === 0) {
+        toast({
+          title: "No data to sync",
+          description: "You don't have any match data to sync to the server.",
+        });
+        setIsSyncing(false);
+        return;
+      }
+      
+      // Send ALL matches to server
+      console.log("Sending all local match data to server...");
+      
+      const syncResponse = await apiRequest<{
+        success: boolean;
+        syncedMatches: number;
+        errors: string[];
+      }>({
+        endpoint: "/api/sync",
+        method: "POST",
+        data: { matches: allMatches, forceSync: true }
+      });
+      
+      if (syncResponse.success) {
+        console.log(`Successfully synced ${syncResponse.syncedMatches} matches to server`);
+        
+        // Update local sync status for ALL matches we sent
+        for (const match of allMatches) {
+          if (match.id) {
+            const matchToUpdate = await getMatchEntry(match.id);
+            if (matchToUpdate) {
+              await updateMatchEntry({
+                ...matchToUpdate,
+                syncStatus: 'synced' as 'synced',
+                syncedAt: Date.now()
+              });
+            }
+          }
+        }
+        
+        // Get server data, same as normal sync
+        await fetchAllServerData();
+        
+        vibrationSuccess();
+        toast({
+          title: "Full sync successful",
+          description: `Synchronized ${syncResponse.syncedMatches} matches with server`,
+        });
+      } else {
+        console.error("Error syncing all matches:", syncResponse.errors);
+        throw new Error("Failed to sync all matches");
+      }
+    } catch (error) {
+      console.error("Error performing full sync:", error);
+      vibrationError();
+      toast({
+        title: "Full sync failed",
+        description: "Failed to sync all data with server. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+  
+  // Function to fetch all server data
+  const fetchAllServerData = async () => {
+    // Get ALL server data to ensure complete data set
+    console.log("Fetching all server data...");
+    
+    const allServerDataResponse = await apiRequest<{
+      success: boolean;
+      matches: MatchEntry[];
+      teams: any[];
+      timestamp: number;
+    }>({
+      endpoint: "/api/sync/all",
+      method: "GET"
+    });
+    
+    if (allServerDataResponse.success && allServerDataResponse.matches) {
+      const serverMatches = allServerDataResponse.matches;
+      console.log(`Received ${serverMatches.length} matches from server`);
+      
+      let importedCount = 0;
+      let updatedCount = 0;
+      
+      // Process all server data
+      for (const serverMatch of serverMatches) {
+        try {
+          // Ensure server match is marked as synced
+          const syncedMatch = {
+            ...serverMatch,
+            syncStatus: 'synced' as 'synced',
+            syncedAt: allServerDataResponse.timestamp || Date.now()
+          };
+          
+          // Check if we already have this match
+          const existingMatches = await getFilteredMatches({
+            teamNumber: serverMatch.team,
+            matchType: serverMatch.matchType,
+            matchNumber: serverMatch.matchNumber
+          });
+          
+          if (existingMatches.length === 0) {
+            // New match from server - add it
+            await addMatchEntry(syncedMatch);
+            importedCount++;
+            console.log(`Added new match from server: Team ${serverMatch.team}, Match ${serverMatch.matchNumber}`);
+          } else {
+            // We have this match locally - check if server version is newer
+            const existingMatch = existingMatches[0];
+              
+            // Only update if server data is newer or has a different sync status
+            const serverTimestamp = serverMatch.timestamp || 0;
+            const localTimestamp = existingMatch.timestamp || 0;
+            
+            if (serverTimestamp > localTimestamp) {
+              console.log(`Server match for team ${serverMatch.team} is newer (${serverTimestamp} > ${localTimestamp})`);
+              await updateMatchEntry({
+                ...syncedMatch,
+                id: existingMatch.id, // Keep the local ID
+                syncStatus: 'synced' as 'synced'
+              });
+              updatedCount++;
+            }
+          }
+        } catch (error) {
+          console.error("Error processing server match:", error);
+        }
+      }
+      
+      // Update stats
+      await checkPendingSyncs();
+      await loadDbStats();
+      
+      // Update server sync time
+      const now = Date.now();
+      localStorage.setItem('serverSyncTime', now.toString());
+      setSyncStats(prev => ({
+        ...prev,
+        lastSyncTime: formatLastSync(now)
+      }));
+      
+      return { importedCount, updatedCount };
+    } else {
+      throw new Error("Failed to get server data");
+    }
+  };
+  
   const handleServerSync = async () => {
     if (!isOnline) {
       toast({
@@ -968,7 +1139,7 @@ export default function DataSync() {
                   )}
                 </p>
               </div>
-              <div className="mt-3 sm:mt-0">
+              <div className="mt-3 sm:mt-0 space-x-2 flex">
                 <Button
                   onClick={handleServerSync}
                   disabled={!isOnline || isSyncing}
@@ -987,6 +1158,24 @@ export default function DataSync() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
                       </svg>
                       Sync with Server
+                    </>
+                  )}
+                </Button>
+                
+                <Button
+                  onClick={handleForceFullSync}
+                  disabled={!isOnline || isSyncing}
+                  className={`relative ${!isOnline ? 'bg-gray-400' : 'bg-orange-600 hover:bg-orange-700'} text-white px-3 text-sm`}
+                  title="Force a full synchronization of all local data to the server, regardless of sync status"
+                >
+                  {isSyncing ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Force Full Sync
                     </>
                   )}
                 </Button>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FRC Scouting App Launcher</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: linear-gradient(135deg, #1a237e 0%, #4a148c 100%);
+      color: white;
+    }
+    .container {
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 2rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      max-width: 600px;
+      text-align: center;
+    }
+    h1 {
+      margin-top: 0;
+      color: white;
+    }
+    .button {
+      display: inline-block;
+      background-color: #2196f3;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      text-decoration: none;
+      font-weight: bold;
+      margin-top: 1rem;
+      transition: background-color 0.3s;
+    }
+    .button:hover {
+      background-color: #1976d2;
+    }
+    .url {
+      background-color: rgba(0, 0, 0, 0.2);
+      padding: 10px;
+      border-radius: 5px;
+      margin: 1rem 0;
+      word-break: break-all;
+    }
+    .note {
+      font-size: 0.9rem;
+      opacity: 0.8;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>FRC Scouting App</h1>
+    <p>The application is running at:</p>
+    <div class="url">http://localhost:5000</div>
+    <p>Click the button below to open the application:</p>
+    <a href="http://localhost:5000" target="_blank" class="button">Launch FRC Scouting App</a>
+    <p class="note">If the app doesn't load, make sure the server is running by checking the 'Start application' workflow.</p>
+  </div>
+</body>
+</html>
