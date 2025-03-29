@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { RatingInput, CommentArea } from "@/components/ui/rating-input";
+import { RatingInput, CommentArea, NO_DATA_VALUE } from "@/components/ui/rating-input";
 import { teams, matchTypes, climbingTypes, ratingCategories } from "@/lib/teamData";
 import { addMatchEntry } from "@/lib/db";
 import { MatchEntry } from "@/lib/types";

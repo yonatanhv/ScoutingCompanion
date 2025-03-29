@@ -40,6 +40,7 @@ export default function MobileNav() {
 
   // Secondary navigation items (in "More" menu)
   const secondaryNavItems = [
+    { path: '/alliance-advisor', label: 'Advisor', icon: <Cpu className="h-5 w-5" /> },
     { path: '/filters', label: 'Filters', icon: <Sliders className="h-5 w-5" /> },
     { path: '/data', label: 'Sync', icon: <RefreshCw className="h-5 w-5" /> },
     { path: '/backup', label: 'Backup', icon: <Database className="h-5 w-5" /> },

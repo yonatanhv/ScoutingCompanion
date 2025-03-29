@@ -772,13 +772,41 @@ export async function buildAlliance(teamNumbers: string[]): Promise<Alliance | n
     // Cap synergy at 10
     synergy = Math.min(Math.round(synergy), 10);
     
+    // Calculate performance variance (lower is better - represents consistency)
+    const overallScores = validTeamStats.map(team => team.averages.overall);
+    const performanceVariance = calculateVariance(overallScores);
+    
+    // Calculate climb success rate
+    const totalClimbs = validTeamStats.reduce((sum, team) => 
+      sum + team.climbingStats.none + team.climbingStats.low + team.climbingStats.high, 0);
+    
+    const successfulClimbs = validTeamStats.reduce((sum, team) => 
+      sum + team.climbingStats.low + team.climbingStats.high, 0);
+    
+    const climbSuccessRate = totalClimbs > 0 ? successfulClimbs / totalClimbs : 0;
+    
+    // Calculate role coverage (simplified version)
+    let roleCoverage = 0.5; // Start at 50%
+    
+    // Check if we have coverage for key roles
+    if (hasDefender) roleCoverage += 0.1;
+    if (hasScorer) roleCoverage += 0.1;
+    if (hasHighClimber) roleCoverage += 0.1;
+    if (validTeamStats.some(team => team.averages.autonomous >= 4.5)) roleCoverage += 0.1;
+    
+    // Cap at 1.0 (100%)
+    roleCoverage = Math.min(roleCoverage, 1.0);
+    
     return {
       teams: teamNumbers,
       combinedAverages,
       climbingBreakdown,
       strengths,
       weaknesses,
-      synergy
+      synergy,
+      performanceVariance,
+      climbSuccessRate,
+      roleCoverage
     };
   } catch (error) {
     console.error('Error building alliance:', error);

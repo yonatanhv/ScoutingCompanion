@@ -120,6 +120,9 @@ export interface Alliance {
   strengths: string[];
   weaknesses: string[];
   synergy: number; // 1-10 rating of how well teams complement each other
+  performanceVariance: number; // Measure of consistency (lower is better)
+  climbSuccessRate: number; // Percentage (0.0-1.0) of successful climbs
+  roleCoverage: number; // Percentage (0.0-1.0) of role coverage within the alliance
 }
 
 // Filter preset
