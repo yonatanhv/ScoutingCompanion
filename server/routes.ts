@@ -657,6 +657,7 @@ async function updateTeamStatistics(teamNumber: string): Promise<void> {
     const climbingCounts = {
       none: 0,
       low: 0,
+      mid: 0,
       high: 0,
     };
     
@@ -671,6 +672,7 @@ async function updateTeamStatistics(teamNumber: string): Promise<void> {
       
       if (match.climbing === "none") climbingCounts.none++;
       else if (match.climbing === "low") climbingCounts.low++;
+      else if (match.climbing === "mid") climbingCounts.mid++;
       else if (match.climbing === "high") climbingCounts.high++;
     }
     
@@ -695,6 +697,7 @@ async function updateTeamStatistics(teamNumber: string): Promise<void> {
       avgOverall: totals.overall / matchCount,
       climbingNone: climbingCounts.none,
       climbingLow: climbingCounts.low,
+      climbingMid: climbingCounts.mid,
       climbingHigh: climbingCounts.high,
       lastUpdated: new Date(),
     };

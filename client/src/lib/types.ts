@@ -60,11 +60,13 @@ export interface TeamStatistics {
     overall: number;
   };
   
-  // Climbing statistics
+  // Climbing statistics (REEFSCAPE - CAGES on the BARGE)
   climbingStats: {
+    noData: number;
     none: number;
-    low: number;
-    high: number;
+    park: number;
+    shallow: number;
+    deep: number;
   };
 }
 
@@ -113,9 +115,11 @@ export interface Alliance {
     overall: number;
   };
   climbingBreakdown: {
+    noData: number;
     none: number;
-    low: number;
-    high: number;
+    park: number;
+    shallow: number;
+    deep: number;
   };
   strengths: string[];
   weaknesses: string[];

@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { TeamMascotSpinner } from "@/components/ui/team-mascot-spinner";
 import { 
   Select, 
   SelectContent, 
@@ -38,16 +40,31 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   buildAlliance,
   getAllTeams,
   saveAlliancePreset,
   getAllAlliancePresets,
   deleteAlliancePreset
 } from "@/lib/db";
+import { 
+  createAlliancePreset, 
+  deleteServerAlliancePreset, 
+  fetchAllAlliancePresets 
+} from "@/lib/allianceService";
 import { Alliance, TeamStatistics } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { Star, StarOff, PlusCircle, Trash2, Save, RotateCw } from "lucide-react";
+import { Star, StarOff, PlusCircle, Trash2, Save, RotateCw, CheckCircle, XCircle, Filter, Cloud, Database, FileText, Download, FileJson, Brain } from "lucide-react";
 import { formSubmitVibration } from "@/lib/haptics";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import { AllianceReportPDF } from "@/components/pdf/AllianceReportPDF";
+import { RecommendationEngine } from "@/components/ai/RecommendationEngine";
 
 const AllianceBuilder = () => {
   const [teams, setTeams] = useState<TeamStatistics[]>([]);
@@ -57,7 +74,18 @@ const AllianceBuilder = () => {
   const [presetName, setPresetName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("builder");
+  const [isPdfReady, setIsPdfReady] = useState(false);
+  
+  // For Advisor functionality
+  const [includedTeams, setIncludedTeams] = useState<string[]>([]);
+  const [excludedTeams, setExcludedTeams] = useState<string[]>([]);
+  const [alliances, setAlliances] = useState<Alliance[]>([]);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [sortCriteria, setSortCriteria] = useState<keyof Alliance["combinedAverages"]>("overall");
+  
   const { toast } = useToast();
+  const { isOnline } = useOnlineStatus();
 
   useEffect(() => {
     // Load all teams
@@ -444,18 +472,26 @@ const AllianceBuilder = () => {
                   {/* Climbing breakdown */}
                   <div>
                     <h3 className="text-sm font-medium mb-2">Climbing Capabilities</h3>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-5 gap-2">
                       <div className="text-center">
-                        <div className="text-3xl font-bold">{alliance.climbingBreakdown.none}</div>
-                        <div className="text-xs text-muted-foreground">No Climb</div>
+                        <div className="text-2xl font-bold">{alliance.climbingBreakdown.noData || 0}</div>
+                        <div className="text-xs text-muted-foreground">No Data</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-3xl font-bold">{alliance.climbingBreakdown.low}</div>
-                        <div className="text-xs text-muted-foreground">Low Climb</div>
+                        <div className="text-2xl font-bold">{alliance.climbingBreakdown.none || 0}</div>
+                        <div className="text-xs text-muted-foreground">None</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-3xl font-bold">{alliance.climbingBreakdown.high}</div>
-                        <div className="text-xs text-muted-foreground">High Climb</div>
+                        <div className="text-2xl font-bold">{alliance.climbingBreakdown.park || 0}</div>
+                        <div className="text-xs text-muted-foreground">Park</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">{alliance.climbingBreakdown.shallow || 0}</div>
+                        <div className="text-xs text-muted-foreground">Shallow</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">{alliance.climbingBreakdown.deep || 0}</div>
+                        <div className="text-xs text-muted-foreground">Deep</div>
                       </div>
                     </div>
                   </div>
@@ -553,7 +589,100 @@ const AllianceBuilder = () => {
                 </div>
               )}
             </CardContent>
+            {alliance && (
+              <CardFooter className="flex flex-wrap justify-between gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center"
+                    onClick={() => {
+                      formSubmitVibration();
+                      setIsPdfReady(true);
+                    }}
+                    disabled={!alliance || alliance.teams.length === 0}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Export Report
+                  </Button>
+                  {isPdfReady && alliance && (
+                    <PDFDownloadLink 
+                      document={
+                        <AllianceReportPDF 
+                          alliance={alliance} 
+                          teamDetails={teams.filter(t => alliance.teams.includes(t.teamNumber))}
+                          presetName={presetName.trim() || "Custom Alliance"}
+                        />
+                      } 
+                      fileName={`alliance-report-${new Date().toISOString().split('T')[0]}.pdf`}
+                    >
+                      {({ loading, error }) => (
+                        <Button
+                          size="sm"
+                          className="flex items-center"
+                          disabled={loading || Boolean(error)}
+                          onClick={() => formSubmitVibration()}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          {loading ? "Preparing PDF..." : "Download PDF"}
+                        </Button>
+                      )}
+                    </PDFDownloadLink>
+                  )}
+                </div>
+                
+                <div className="flex space-x-2">
+                  <Input
+                    placeholder="Alliance name"
+                    value={presetName}
+                    onChange={(e) => setPresetName(e.target.value)}
+                    className="w-44"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => handleSavePreset(true)}
+                    disabled={isSaving || selectedTeams.length === 0 || !presetName.trim()}
+                    title="Save as favorite"
+                  >
+                    <Star className="h-4 w-4 text-yellow-500" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleSavePreset(false)}
+                    disabled={isSaving || selectedTeams.length === 0 || !presetName.trim()}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    Save
+                  </Button>
+                </div>
+              </CardFooter>
+            )}
           </Card>
+        </div>
+        
+        {/* AI Recommendation Engine */}
+        <div className="mb-6">
+          <RecommendationEngine 
+            teams={teams}
+            selectedTeams={selectedTeams}
+            alliance={alliance}
+            onRecommendTeam={(teamNumber) => {
+              // Find the next available position or update an empty position
+              const emptyIndex = selectedTeams.findIndex(team => team === "");
+              if (emptyIndex >= 0) {
+                handleTeamSelect(emptyIndex, teamNumber);
+              } else if (selectedTeams.length < 3) {
+                handleTeamSelect(selectedTeams.length, teamNumber);
+              } else {
+                toast({
+                  title: "Alliance Full",
+                  description: "Remove a team first to add this recommendation",
+                  variant: "destructive"
+                });
+              }
+            }}
+          />
         </div>
         
         {/* Saved Alliances */}

@@ -13,13 +13,15 @@ interface StatisticalInsightsProps {
 export function StatisticalInsights({ teamStats, matches }: StatisticalInsightsProps) {
   // Process climbing data for pie chart
   const climbingData = [
-    { name: 'High', value: teamStats.climbingStats.high },
-    { name: 'Low', value: teamStats.climbingStats.low },
-    { name: 'None', value: teamStats.climbingStats.none },
+    { name: 'Deep', value: teamStats.climbingStats.deep || 0 },
+    { name: 'Shallow', value: teamStats.climbingStats.shallow || 0 },
+    { name: 'Park', value: teamStats.climbingStats.park || 0 },
+    { name: 'None', value: teamStats.climbingStats.none || 0 },
+    { name: 'No Data', value: teamStats.climbingStats.noData || 0 },
   ].filter(item => item.value > 0);
   
   // Colors for the pie chart
-  const COLORS = ['#22c55e', '#3b82f6', '#f97316'];
+  const COLORS = ['#22c55e', '#0ea5e9', '#3b82f6', '#f97316', '#a855f7'];
   
   // Calculate win percentage if alliance data is available
   const calculateWinPercentage = () => {

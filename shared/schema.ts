@@ -40,7 +40,7 @@ export const matchEntries = pgTable("match_entries", {
   drivingSkill: integer("driving_skill").notNull(),
   drivingSkillComment: text("driving_skill_comment"),
   
-  // Climbing (none, low, high)
+  // Climbing (none, park, shallow, deep)
   climbing: text("climbing").notNull(),
   climbingComment: text("climbing_comment"),
   
@@ -79,10 +79,12 @@ export const teamStatistics = pgTable("team_statistics", {
   avgDrivingSkill: doublePrecision("avg_driving_skill").default(0).notNull(),
   avgOverall: doublePrecision("avg_overall").default(0).notNull(),
   
-  // Climbing counts
+  // Climbing counts (REEFSCAPE - CAGES on the BARGE)
+  climbingNoData: integer("climbing_no_data").default(0).notNull(),
   climbingNone: integer("climbing_none").default(0).notNull(),
-  climbingLow: integer("climbing_low").default(0).notNull(),
-  climbingHigh: integer("climbing_high").default(0).notNull(),
+  climbingPark: integer("climbing_park").default(0).notNull(),
+  climbingShallow: integer("climbing_shallow").default(0).notNull(),
+  climbingDeep: integer("climbing_deep").default(0).notNull(),
   
   // Last updated
   lastUpdated: timestamp("last_updated").defaultNow().notNull(),

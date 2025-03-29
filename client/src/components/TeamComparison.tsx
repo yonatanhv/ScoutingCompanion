@@ -126,17 +126,24 @@ export function TeamComparison({ teamStats, comparisonStats }: TeamComparisonPro
   const prepareClimbingData = () => {
     return [
       {
-        category: 'High',
-        [teamStats.teamNumber]: teamStats.climbingStats.high,
+        category: 'Deep',
+        [teamStats.teamNumber]: teamStats.climbingStats.deep,
         [`${teamStats.teamNumber}Color`]: '#3b82f6',
-        [comparisonStats.teamNumber]: comparisonStats.climbingStats.high,
+        [comparisonStats.teamNumber]: comparisonStats.climbingStats.deep,
         [`${comparisonStats.teamNumber}Color`]: '#ef4444',
       },
       {
-        category: 'Low',
-        [teamStats.teamNumber]: teamStats.climbingStats.low,
+        category: 'Shallow',
+        [teamStats.teamNumber]: teamStats.climbingStats.shallow,
         [`${teamStats.teamNumber}Color`]: '#3b82f6',
-        [comparisonStats.teamNumber]: comparisonStats.climbingStats.low,
+        [comparisonStats.teamNumber]: comparisonStats.climbingStats.shallow,
+        [`${comparisonStats.teamNumber}Color`]: '#ef4444',
+      },
+      {
+        category: 'Park',
+        [teamStats.teamNumber]: teamStats.climbingStats.park,
+        [`${teamStats.teamNumber}Color`]: '#3b82f6',
+        [comparisonStats.teamNumber]: comparisonStats.climbingStats.park,
         [`${comparisonStats.teamNumber}Color`]: '#ef4444',
       },
       {
@@ -144,6 +151,13 @@ export function TeamComparison({ teamStats, comparisonStats }: TeamComparisonPro
         [teamStats.teamNumber]: teamStats.climbingStats.none,
         [`${teamStats.teamNumber}Color`]: '#3b82f6',
         [comparisonStats.teamNumber]: comparisonStats.climbingStats.none,
+        [`${comparisonStats.teamNumber}Color`]: '#ef4444',
+      },
+      {
+        category: 'No Data',
+        [teamStats.teamNumber]: teamStats.climbingStats.noData,
+        [`${teamStats.teamNumber}Color`]: '#3b82f6',
+        [comparisonStats.teamNumber]: comparisonStats.climbingStats.noData,
         [`${comparisonStats.teamNumber}Color`]: '#ef4444',
       },
     ];
@@ -343,23 +357,23 @@ export function TeamComparison({ teamStats, comparisonStats }: TeamComparisonPro
               
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm">High Climbs</span>
+                  <span className="text-sm">Deep Climbs</span>
                   <div className="flex gap-2">
-                    <span className="text-sm text-blue-500 font-medium">{teamStats.climbingStats.high}</span>
+                    <span className="text-sm text-blue-500 font-medium">{teamStats.climbingStats.deep}</span>
                     <span className="text-sm">vs</span>
-                    <span className="text-sm text-red-500 font-medium">{comparisonStats.climbingStats.high}</span>
+                    <span className="text-sm text-red-500 font-medium">{comparisonStats.climbingStats.deep}</span>
                   </div>
                 </div>
                 <div className="flex h-2 overflow-hidden rounded-full bg-gray-200">
-                  {teamStats.climbingStats.high + comparisonStats.climbingStats.high > 0 ? (
+                  {teamStats.climbingStats.deep + comparisonStats.climbingStats.deep > 0 ? (
                     <>
                       <div 
                         className="bg-blue-500" 
-                        style={{ width: `${(teamStats.climbingStats.high / (teamStats.climbingStats.high + comparisonStats.climbingStats.high)) * 100}%` }}
+                        style={{ width: `${(teamStats.climbingStats.deep / (teamStats.climbingStats.deep + comparisonStats.climbingStats.deep)) * 100}%` }}
                       ></div>
                       <div 
                         className="bg-red-500" 
-                        style={{ width: `${(comparisonStats.climbingStats.high / (teamStats.climbingStats.high + comparisonStats.climbingStats.high)) * 100}%` }}
+                        style={{ width: `${(comparisonStats.climbingStats.deep / (teamStats.climbingStats.deep + comparisonStats.climbingStats.deep)) * 100}%` }}
                       ></div>
                     </>
                   ) : (

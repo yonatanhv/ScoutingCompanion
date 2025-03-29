@@ -62,9 +62,11 @@ const createDefaultTeamStats = (teamNumber: string, teamName: string): TeamStati
     overall: 0,
   },
   climbingStats: {
+    noData: 0,
     none: 0,
-    low: 0,
-    high: 0,
+    park: 0,
+    shallow: 0,
+    deep: 0,
   },
 });
 
@@ -364,9 +366,11 @@ export async function updateTeamStatistics(teamNumber: string): Promise<void> {
   };
   
   const climbingCounts = {
+    noData: 0,
     none: 0,
-    low: 0,
-    high: 0,
+    park: 0,
+    shallow: 0,
+    deep: 0,
   };
   
   // Calculate totals
@@ -671,9 +675,11 @@ export async function buildAlliance(teamNumbers: string[]): Promise<Alliance | n
     };
     
     const climbingBreakdown = {
+      noData: 0,
       none: 0,
-      low: 0,
-      high: 0,
+      park: 0,
+      shallow: 0,
+      deep: 0,
     };
     
     // Calculate combined statistics
@@ -686,9 +692,11 @@ export async function buildAlliance(teamNumbers: string[]): Promise<Alliance | n
       combinedAverages.drivingSkill += team.averages.drivingSkill;
       combinedAverages.overall += team.averages.overall;
       
+      climbingBreakdown.noData += team.climbingStats.noData || 0;
       climbingBreakdown.none += team.climbingStats.none;
-      climbingBreakdown.low += team.climbingStats.low;
-      climbingBreakdown.high += team.climbingStats.high;
+      climbingBreakdown.park += team.climbingStats.park || 0;
+      climbingBreakdown.shallow += team.climbingStats.shallow || 0;
+      climbingBreakdown.deep += team.climbingStats.deep || 0;
     });
     
     // Calculate average values
@@ -701,11 +709,11 @@ export async function buildAlliance(teamNumbers: string[]): Promise<Alliance | n
     const strengths: string[] = [];
     const weaknesses: string[] = [];
     
-    // Check if there's at least one high climber
-    if (climbingBreakdown.high > 0) {
-      strengths.push('Has high climber capability');
+    // Check if there's at least one deep climber
+    if (climbingBreakdown.deep > 0) {
+      strengths.push('Has deep climber capability');
     } else {
-      weaknesses.push('No high climber capability');
+      weaknesses.push('No deep climber capability');
     }
     
     // Check scoring capabilities
@@ -750,12 +758,12 @@ export async function buildAlliance(teamNumbers: string[]): Promise<Alliance | n
     const hasScorer = validTeamStats.some(team => 
       team.averages.scoringAlgae >= 5 || team.averages.scoringCorals >= 5
     );
-    const hasHighClimber = validTeamStats.some(team => 
-      team.climbingStats.high > team.climbingStats.none && team.climbingStats.high > team.climbingStats.low
+    const hasDeepClimber = validTeamStats.some(team => 
+      (team.climbingStats.deep || 0) > 0
     );
     
     if (hasDefender && hasScorer) synergy += 1;
-    if (hasHighClimber) synergy += 1;
+    if (hasDeepClimber) synergy += 1;
     if (combinedAverages.autonomous >= 4.5) synergy += 1;
     
     // High variance in defense vs scoring is good (specialized roles)
@@ -778,10 +786,11 @@ export async function buildAlliance(teamNumbers: string[]): Promise<Alliance | n
     
     // Calculate climb success rate
     const totalClimbs = validTeamStats.reduce((sum, team) => 
-      sum + team.climbingStats.none + team.climbingStats.low + team.climbingStats.high, 0);
+      sum + (team.climbingStats.none || 0) + (team.climbingStats.park || 0) + 
+      (team.climbingStats.shallow || 0) + (team.climbingStats.deep || 0), 0);
     
     const successfulClimbs = validTeamStats.reduce((sum, team) => 
-      sum + team.climbingStats.low + team.climbingStats.high, 0);
+      sum + (team.climbingStats.park || 0) + (team.climbingStats.shallow || 0) + (team.climbingStats.deep || 0), 0);
     
     const climbSuccessRate = totalClimbs > 0 ? successfulClimbs / totalClimbs : 0;
     
@@ -791,7 +800,7 @@ export async function buildAlliance(teamNumbers: string[]): Promise<Alliance | n
     // Check if we have coverage for key roles
     if (hasDefender) roleCoverage += 0.1;
     if (hasScorer) roleCoverage += 0.1;
-    if (hasHighClimber) roleCoverage += 0.1;
+    if (hasDeepClimber) roleCoverage += 0.1;
     if (validTeamStats.some(team => team.averages.autonomous >= 4.5)) roleCoverage += 0.1;
     
     // Cap at 1.0 (100%)
