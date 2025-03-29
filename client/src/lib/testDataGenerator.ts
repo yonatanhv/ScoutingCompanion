@@ -317,6 +317,63 @@ export function generateMatchEntries(count: number, userId?: number): Array<Omit
 }
 
 /**
+ * Generates match entries for a specific number of teams and matches per team
+ * @param teamCount Number of teams to generate data for (1-10)
+ * @param matchesPerTeam Number of matches per team to generate (1-10)
+ * @param userId Optional user ID
+ * @returns Array of match entries
+ */
+export function generateConfigurableEntries(
+  teamCount: number = 3, 
+  matchesPerTeam: number = 3, 
+  userId?: number
+): Array<Omit<MatchEntry, 'id'>> {
+  // Ensure values are within allowed range
+  const sanitizedTeamCount = Math.max(1, Math.min(10, teamCount));
+  const sanitizedMatchCount = Math.max(1, Math.min(10, matchesPerTeam));
+  
+  const entries: Array<Omit<MatchEntry, 'id'>> = [];
+  const selectedTeams: string[] = [];
+  
+  // First, select the teams we'll use
+  if (existingTeams.length > 0) {
+    // Use existing teams if available
+    for (let i = 0; i < sanitizedTeamCount; i++) {
+      if (i < existingTeams.length) {
+        selectedTeams.push(existingTeams[i]);
+      } else {
+        // Fall back to random teams if we don't have enough existing teams
+        let teamNumber;
+        do {
+          teamNumber = randomInt(MIN_TEAM_NUMBER, MAX_TEAM_NUMBER).toString();
+        } while (selectedTeams.includes(teamNumber));
+        selectedTeams.push(teamNumber);
+      }
+    }
+  } else {
+    // Generate random team numbers
+    for (let i = 0; i < sanitizedTeamCount; i++) {
+      let teamNumber;
+      do {
+        teamNumber = randomInt(MIN_TEAM_NUMBER, MAX_TEAM_NUMBER).toString();
+      } while (selectedTeams.includes(teamNumber));
+      selectedTeams.push(teamNumber);
+    }
+  }
+  
+  // Generate matches for each selected team
+  for (const teamNumber of selectedTeams) {
+    for (let i = 0; i < sanitizedMatchCount; i++) {
+      const entry = generateMatchEntry(userId);
+      entry.team = teamNumber;
+      entries.push(entry);
+    }
+  }
+  
+  return entries;
+}
+
+/**
  * Generates a set of entries for specific teams to ensure they have data
  */
 export function generateEntriesForTeams(teamNumbers: string[], entriesPerTeam: number = 3, userId?: number): Array<Omit<MatchEntry, 'id'>> {

@@ -68,6 +68,8 @@ export default function DataSync() {
   const [showClearTeamDialog, setShowClearTeamDialog] = useState(false);
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
   const [showClearServerDialog, setShowClearServerDialog] = useState(false);
+  const [serverDeleteKey, setServerDeleteKey] = useState('');
+  const [isServerDeleteKeyValid, setIsServerDeleteKeyValid] = useState(false);
   const [teamToClear, setTeamToClear] = useState("");
 
   // Last sync timestamp
@@ -862,12 +864,40 @@ export default function DataSync() {
     }
   };
   
+  // Validate server delete key
+  const validateServerDeleteKey = (key: string) => {
+    // Secret key for deleting server data (matches TestDataGenerator key)
+    const validKey = "270773";
+    const isValid = key === validKey;
+    setIsServerDeleteKeyValid(isValid);
+    
+    if (!isValid && key.length > 0) {
+      toast({
+        title: "Invalid Key",
+        description: "The entered security key is not valid",
+        variant: "destructive"
+      });
+    }
+    
+    return isValid;
+  };
+  
   // Handle server data deletion (emergency recovery option)
   const handleClearServerData = async () => {
     if (!isOnline) {
       toast({
         title: "Offline",
         description: "You're currently offline. Please connect to the internet to manage server data.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Verify security key
+    if (!isServerDeleteKeyValid) {
+      toast({
+        title: "Security Key Required",
+        description: "You must enter a valid security key to delete server data",
         variant: "destructive"
       });
       return;
@@ -983,9 +1013,9 @@ export default function DataSync() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Export Section */}
-            <div className="border border-gray-200 rounded-lg p-4">
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
               <h3 className="font-medium mb-4">Export Data</h3>
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                 Export your locally stored scouting data to share with other team members.
               </p>
               
@@ -1056,23 +1086,23 @@ export default function DataSync() {
             </div>
             
             {/* Import Section */}
-            <div className="border border-gray-200 rounded-lg p-4">
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
               <h3 className="font-medium mb-4">Import Data</h3>
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                 Import scouting data from other team members to combine datasets.
               </p>
               
               <div 
-                className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center mb-4"
+                className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center mb-4"
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
               >
-                <div className="mb-3 text-gray-500">
+                <div className="mb-3 text-gray-500 dark:text-gray-400">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
                 </div>
-                <p className="text-sm text-gray-600 mb-3">Drag and drop JSON file here or</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Drag and drop JSON file here or</p>
                 <label htmlFor="import-file" className="px-4 py-2 bg-primary text-white rounded font-medium text-sm cursor-pointer">
                   Browse Files
                 </label>
@@ -1100,12 +1130,12 @@ export default function DataSync() {
               {importPreview && (
                 <div className="mt-4">
                   <h4 className="text-sm font-medium mb-2">Import Preview</h4>
-                  <div className="bg-gray-50 p-3 rounded-lg text-sm">
-                    <div className="flex justify-between border-b border-gray-200 pb-2 mb-2">
+                  <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg text-sm">
+                    <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2 mb-2">
                       <span>Teams:</span>
                       <span>{importPreview.teams} teams</span>
                     </div>
-                    <div className="flex justify-between border-b border-gray-200 pb-2 mb-2">
+                    <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2 mb-2">
                       <span>Match Entries:</span>
                       <span>{importPreview.entries} entries</span>
                     </div>
@@ -1127,11 +1157,11 @@ export default function DataSync() {
           </div>
           
           {/* Server Sync Section */}
-          <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
+          <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 rounded-lg">
             <div className="flex flex-wrap justify-between items-center">
               <div>
                 <h3 className="font-medium mb-1">Server Synchronization</h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   {isOnline ? (
                     "Sync your local data with the server when connected to the internet."
                   ) : (
@@ -1183,62 +1213,62 @@ export default function DataSync() {
             </div>
             
             <div className="grid grid-cols-2 gap-4 mt-4">
-              <div className="bg-white p-3 rounded-lg shadow-sm">
-                <div className="text-sm text-gray-500">Pending Uploads</div>
+              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-500 dark:text-gray-400">Pending Uploads</div>
                 <div className="flex items-center">
                   <span className="text-xl font-medium">{syncStats.pendingUploads}</span>
                   {syncStats.pendingUploads > 0 && (
-                    <Badge className="ml-2 bg-yellow-500">Needs Sync</Badge>
+                    <Badge className="ml-2 bg-yellow-500 text-white">Needs Sync</Badge>
                   )}
                 </div>
               </div>
-              <div className="bg-white p-3 rounded-lg shadow-sm">
-                <div className="text-sm text-gray-500">Last Server Sync</div>
+              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-500 dark:text-gray-400">Last Server Sync</div>
                 <div className="text-xl font-medium">{syncStats.lastSyncTime || "Never"}</div>
               </div>
             </div>
           </div>
           
           {/* Data Statistics */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+          <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
             <h3 className="font-medium mb-3">Data Statistics</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white p-3 rounded-lg shadow-sm">
-                <div className="text-sm text-gray-500">Teams Scouted</div>
+              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-500 dark:text-gray-400">Teams Scouted</div>
                 <div className="text-xl font-medium">{dbStats.teamsCount}</div>
               </div>
-              <div className="bg-white p-3 rounded-lg shadow-sm">
-                <div className="text-sm text-gray-500">Total Match Entries</div>
+              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-500 dark:text-gray-400">Total Match Entries</div>
                 <div className="text-xl font-medium">{dbStats.matchesCount}</div>
               </div>
-              <div className="bg-white p-3 rounded-lg shadow-sm">
-                <div className="text-sm text-gray-500">Storage Used</div>
+              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-500 dark:text-gray-400">Storage Used</div>
                 <div className="text-xl font-medium">{dbStats.storageUsed}</div>
               </div>
-              <div className="bg-white p-3 rounded-lg shadow-sm">
-                <div className="text-sm text-gray-500">Last Sync</div>
+              <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
+                <div className="text-sm text-gray-500 dark:text-gray-400">Last Sync</div>
                 <div className="text-xl font-medium">{lastSync || "Never"}</div>
               </div>
             </div>
           </div>
           
           {/* Danger Zone */}
-          <div className="mt-6 border border-red-500 rounded-lg p-4">
-            <h3 className="font-medium text-red-500 mb-3">Danger Zone</h3>
-            <p className="text-sm text-gray-600 mb-4">
+          <div className="mt-6 border border-red-500 dark:border-red-400 rounded-lg p-4">
+            <h3 className="font-medium text-red-500 dark:text-red-400 mb-3">Danger Zone</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               These actions will permanently delete data and cannot be undone.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button 
                 variant="outline"
-                className="border-red-500 text-red-500"
+                className="border-red-500 dark:border-red-400 text-red-500 dark:text-red-400"
                 onClick={() => setShowClearTeamDialog(true)}
               >
                 Clear Team Data
               </Button>
               <Button 
                 variant="outline"
-                className="border-red-500 text-red-500"
+                className="border-red-500 dark:border-red-400 text-red-500 dark:text-red-400"
                 onClick={() => setShowClearAllDialog(true)}
               >
                 Clear All Data
@@ -1314,7 +1344,7 @@ export default function DataSync() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="my-4 p-3 bg-red-50 border border-red-100 rounded-md text-red-800 text-sm">
+          <div className="my-4 p-3 bg-red-50 dark:bg-red-950 border border-red-100 dark:border-red-800 rounded-md text-red-800 dark:text-red-300 text-sm">
             Warning: You will lose all scouting data that hasn't been exported.
             Consider exporting your data before proceeding.
           </div>
@@ -1399,7 +1429,14 @@ export default function DataSync() {
       </Dialog>
       
       {/* Clear Server Data Dialog */}
-      <Dialog open={showClearServerDialog} onOpenChange={setShowClearServerDialog}>
+      <Dialog open={showClearServerDialog} onOpenChange={(open) => {
+        if (!open) {
+          // Reset key when dialog is closed
+          setServerDeleteKey('');
+          setIsServerDeleteKeyValid(false);
+        }
+        setShowClearServerDialog(open);
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="text-destructive">Delete All Server Data</DialogTitle>
@@ -1413,6 +1450,35 @@ export default function DataSync() {
               This is an emergency recovery option. Only use this if your team is experiencing severe synchronization issues that cannot be resolved by normal means.
             </p>
           </div>
+          
+          <div className="py-2">
+            <Label htmlFor="server-delete-key" className="block mb-2 text-sm font-medium">
+              Security Key <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative">
+              <Input 
+                id="server-delete-key"
+                type="password" 
+                placeholder="Enter security key" 
+                className={`pr-10 ${isServerDeleteKeyValid ? 'border-green-500' : ''}`}
+                value={serverDeleteKey}
+                onChange={(e) => {
+                  const key = e.target.value;
+                  setServerDeleteKey(key);
+                  validateServerDeleteKey(key);
+                }}
+              />
+              {isServerDeleteKeyValid && (
+                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500">
+                  ✓
+                </span>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              A security key is required to delete server data.
+            </p>
+          </div>
+          
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowClearServerDialog(false)}>
               Cancel
@@ -1420,7 +1486,7 @@ export default function DataSync() {
             <Button 
               variant="destructive"
               onClick={handleClearServerData}
-              disabled={!isOnline}
+              disabled={!isOnline || !isServerDeleteKeyValid}
             >
               Delete & Backup Server Data
             </Button>

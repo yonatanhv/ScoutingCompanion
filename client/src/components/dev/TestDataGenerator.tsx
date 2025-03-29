@@ -18,7 +18,8 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import TeamMascotSpinner from "../ui/team-mascot-spinner";
 import { 
-  generateMatchEntries, 
+  generateMatchEntries,
+  generateConfigurableEntries, 
   setExistingTeams, 
   getSampleTeams,
   generateDefaultTeamStatistics
@@ -41,6 +42,9 @@ export default function TestDataGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [dataCount, setDataCount] = useState(10);
+  const [teamCount, setTeamCount] = useState(3);
+  const [matchesPerTeam, setMatchesPerTeam] = useState(3);
+  const [useConfigurableMode, setUseConfigurableMode] = useState(false);
   const [teamsList, setTeamsList] = useState<{teamNumber: string, teamName: string}[]>([]);
   const [useExistingTeams, setUseExistingTeams] = useState(true);
   const [showDataViewer, setShowDataViewer] = useState(false);
@@ -160,7 +164,15 @@ export default function TestDataGenerator() {
       }
       
       // Generate random match entries
-      const entries = generateMatchEntries(dataCount);
+      let entries;
+      if (useConfigurableMode) {
+        // Use configurable generator with team count and matches per team
+        entries = generateConfigurableEntries(teamCount, matchesPerTeam);
+      } else {
+        // Use regular generator with total count
+        entries = generateMatchEntries(dataCount);
+      }
+      
       const adaptedEntries = entries.map(entry => adaptMatchEntry(entry));
       setGeneratedData(adaptedEntries as MatchEntry[]);
       
@@ -177,7 +189,7 @@ export default function TestDataGenerator() {
       
       toast({
         title: "Test Data Generated",
-        description: `Successfully generated ${successCount} match entries.`,
+        description: `Successfully generated ${successCount} match entries for ${new Set(adaptedEntries.map(e => e.team)).size} teams.`,
       });
       
       // Show the data viewer with the generated data
@@ -379,6 +391,108 @@ export default function TestDataGenerator() {
                     <li>Appropriate comments reflecting performance</li>
                   </ul>
                 </div>
+                
+                <div className="flex items-center space-x-2 py-2">
+                  <Switch
+                    id="use-configurable-mode"
+                    checked={useConfigurableMode}
+                    onCheckedChange={setUseConfigurableMode}
+                  />
+                  <Label htmlFor="use-configurable-mode">
+                    Configure teams and matches per team
+                  </Label>
+                </div>
+                
+                {useConfigurableMode ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <Label htmlFor="teamCount">Number of Teams: {teamCount}</Label>
+                      </div>
+                      <Slider
+                        id="teamCount"
+                        min={1}
+                        max={10}
+                        step={1}
+                        value={[teamCount]}
+                        onValueChange={(value) => setTeamCount(value[0])}
+                      />
+                      <div className="text-xs text-muted-foreground">
+                        Select between 1-10 teams to generate data for
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <Label htmlFor="matchesPerTeam">Matches per Team: {matchesPerTeam}</Label>
+                      </div>
+                      <Slider
+                        id="matchesPerTeam"
+                        min={1}
+                        max={10}
+                        step={1}
+                        value={[matchesPerTeam]}
+                        onValueChange={(value) => setMatchesPerTeam(value[0])}
+                      />
+                      <div className="text-xs text-muted-foreground">
+                        Select between 1-10 matches per team
+                      </div>
+                    </div>
+                    
+                    <div className="text-xs bg-muted/50 p-2 rounded-lg mt-2">
+                      Will generate approximately {teamCount * matchesPerTeam} total entries
+                      ({teamCount} teams × {matchesPerTeam} matches each)
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <Label htmlFor="advancedDataCount">Number of Entries: {dataCount}</Label>
+                    </div>
+                    <Slider
+                      id="advancedDataCount"
+                      min={1}
+                      max={50}
+                      step={1}
+                      value={[dataCount]}
+                      onValueChange={(value) => setDataCount(value[0])}
+                    />
+                  </div>
+                )}
+                
+                <div className="flex items-center space-x-2 py-2">
+                  <Switch
+                    id="advanced-use-existing-teams"
+                    checked={useExistingTeams}
+                    onCheckedChange={setUseExistingTeams}
+                  />
+                  <Label htmlFor="advanced-use-existing-teams">
+                    Use existing teams {isLoading && <TeamMascotSpinner size="sm" className="inline-block ml-1" />}
+                  </Label>
+                </div>
+                
+                {useExistingTeams && (
+                  <div className="space-y-2">
+                    <div className="text-xs text-muted-foreground">
+                      {teamsList.length > 0 
+                        ? `Using ${teamsList.length} teams from the database for data generation.`
+                        : "No teams found in the database. Generate sample teams first."}
+                    </div>
+                    
+                    {teamsList.length === 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex items-center gap-1 text-xs"
+                        onClick={() => generateSampleTeams()}
+                        disabled={isGenerating}
+                      >
+                        <Users className="h-3 w-3" />
+                        Generate Sample Teams
+                      </Button>
+                    )}
+                  </div>
+                )}
                 
                 <div className="flex justify-end space-x-2">
                   <Button
