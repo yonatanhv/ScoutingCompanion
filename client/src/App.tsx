@@ -4,16 +4,15 @@ import { initDB } from "@/lib/db";
 import Header from "@/components/layout/Header";
 import MobileNav from "@/components/layout/MobileNav";
 import ScoutMatch from "@/pages/ScoutMatch";
-import ViewTeam from "@/pages/ViewTeam";
 import DataSync from "@/pages/DataSync";
 import TeamAnalytics from "@/pages/TeamAnalytics";
 import CloudBackup from "@/pages/CloudBackup";
 import AllianceBuilder from "@/pages/AllianceBuilder";
-import AllianceAdvisor from "@/pages/AllianceAdvisor";
 import FilterDashboard from "@/pages/FilterDashboard";
 import NotFound from "@/pages/not-found";
 import { useToast } from "@/hooks/use-toast";
 import { BackgroundParticles } from "@/components/ui/background-particles";
+import { TestDataGenerator } from "@/components/dev/TestDataGenerator";
 
 function Router() {
   const [location, setLocation] = useLocation();
@@ -28,7 +27,6 @@ function Router() {
   return (
     <Switch>
       <Route path="/scout" component={ScoutMatch} />
-      <Route path="/team" component={ViewTeam} />
       <Route path="/data" component={DataSync} />
       <Route path="/analytics" component={TeamAnalytics} />
       <Route path="/alliance" component={AllianceBuilder} />
@@ -98,6 +96,9 @@ function App() {
         <Router />
       </main>
       <MobileNav />
+      
+      {/* Test Data Generator (only accessible with secret key) */}
+      <TestDataGenerator />
     </div>
   );
 }

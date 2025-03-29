@@ -33,15 +33,13 @@ export default function MobileNav() {
   // Primary navigation items
   const primaryNavItems = [
     { path: '/scout', label: 'Scout', icon: <ClipboardCheck className="h-5 w-5" /> },
-    { path: '/team', label: 'Teams', icon: <Users className="h-5 w-5" /> },
     { path: '/analytics', label: 'Stats', icon: <BarChart2 className="h-5 w-5" /> },
     { path: '/alliance', label: 'Alliance', icon: <Cpu className="h-5 w-5" /> },
+    { path: '/filters', label: 'AI', icon: <Sliders className="h-5 w-5" /> },
   ];
 
   // Secondary navigation items (in "More" menu)
   const secondaryNavItems = [
-    { path: '/alliance-advisor', label: 'Advisor', icon: <Cpu className="h-5 w-5" /> },
-    { path: '/filters', label: 'Filters', icon: <Sliders className="h-5 w-5" /> },
     { path: '/data', label: 'Sync', icon: <RefreshCw className="h-5 w-5" /> },
     { path: '/backup', label: 'Backup', icon: <Database className="h-5 w-5" /> },
   ];
